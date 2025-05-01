@@ -1,0 +1,61 @@
+'use client';
+import { useState } from 'react';
+import { Box, Typography, Button, Paper, Stack, IconButton } from '@mui/material';
+import Image from 'next/image';
+import Link from 'next/link';
+import LoginForm from '@/components/auth/login-form-component';
+import RegisterForm from '@/components/auth/register-form-component';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import HomeIcon from '@mui/icons-material/Home';
+
+export default function LoginPage() {
+  const [isLogin, setIsLogin] = useState(true);
+
+  return (
+    <Box display="flex" minHeight="100vh" bgcolor="#f8f8f8">
+      {/* Zona izquierda */}
+      <Box flex={1} display="flex" justifyContent="center" alignItems="center" sx={{ bgcolor: '#A5D6A7' }}>
+        <Stack spacing={2} alignItems="center">
+          <Image src="/log.png" alt="Logo" width={120} height={120} />
+          <Typography variant="h4" fontWeight="bold" color="#2E7D32">
+            ¡Bienvenido a GreenHub!
+          </Typography>
+          <Typography variant="subtitle1" color="#4CAF50">
+            La mejor selección de plantas para tu hogar
+          </Typography>
+        </Stack>
+      </Box>
+
+      {/* Zona derecha (formularios dinámicos) */}
+      <Box flex={1} display="flex" justifyContent="center" alignItems="center">
+        <Paper elevation={3} sx={{ padding: 4, width: '80%', maxWidth: 500 }}>
+          <Box display="flex" justifyContent="flex-end" mb={2}>
+            <IconButton component={Link} href="/home" color="primary">
+              <HomeIcon />
+            </IconButton>
+          </Box>
+
+          {isLogin ? <LoginForm /> : <RegisterForm />}
+
+          <Box textAlign="center" mt={2}>
+            {isLogin ? (
+              <Typography variant="body2">
+                ¿No tienes cuenta?{' '}
+                <Button variant="text" onClick={() => setIsLogin(false)}>
+                  Regístrate
+                </Button>
+              </Typography>
+            ) : (
+              <IconButton color="primary" onClick={() => setIsLogin(true)}>
+                <ArrowBackIcon />
+                <Typography variant="body2" ml={1}>
+                  Volver al inicio de sesión
+                </Typography>
+              </IconButton>
+            )}
+          </Box>
+        </Paper>
+      </Box>
+    </Box>
+  );
+}
