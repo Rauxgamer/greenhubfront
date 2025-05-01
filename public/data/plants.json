@@ -1,0 +1,233 @@
+[
+    {
+      "id": "encino",
+      "tipo": "arboles",
+      "nombre": "Encino",
+      "descripcion": "Esto es un árbol",
+      "precio": 30,
+      "stock": 100,
+      "imagen": "/plant1.png",
+      "destacado": true
+    },
+    {
+      "id": "palmera",
+      "tipo": "arboles",
+      "nombre": "Palmera",
+      "descripcion": "Una hermosa palmera",
+      "precio": 40,
+      "stock": 80,
+      "imagen": "/plant2.png",
+      "destacado": false
+    },
+    {
+      "id": "rosal",
+      "tipo": "flores",
+      "nombre": "Rosal",
+      "descripcion": "Rosas rojas hermosas",
+      "precio": 25,
+      "stock": 50,
+      "imagen": "/plant3.png",
+      "destacado": true
+    },
+    {
+      "id": "ficus",
+      "tipo": "interior",
+      "nombre": "Ficus Benjamina",
+      "descripcion": "Planta de interior muy resistente",
+      "precio": 35,
+      "stock": 60,
+      "imagen": "/ficus.png",
+      "destacado": true
+    },
+    {
+      "id": "cactus",
+      "tipo": "suculentas",
+      "nombre": "Cactus Bola",
+      "descripcion": "Fácil cuidado y resistente",
+      "precio": 15,
+      "stock": 120,
+      "imagen": "/cactus.png",
+      "destacado": false
+    },
+    {
+      "id": "orquidea",
+      "tipo": "flores",
+      "nombre": "Orquídea Phalaenopsis",
+      "descripcion": "Orquídea de flores vistosas",
+      "precio": 28,
+      "stock": 70,
+      "imagen": "/orquidea.png",
+      "destacado": true
+    },
+    {
+      "id": "bonsai",
+      "tipo": "decoracion",
+      "nombre": "Bonsái Carmona",
+      "descripcion": "Miniatura decorativa muy elegante",
+      "precio": 50,
+      "stock": 25,
+      "imagen": "/bonsai.png",
+      "destacado": false
+    },
+    {
+      "id": "helecho",
+      "tipo": "interior",
+      "nombre": "Helecho de Boston",
+      "descripcion": "Ideal para interiores húmedos",
+      "precio": 22,
+      "stock": 85,
+      "imagen": "/helecho.png",
+      "destacado": true
+    },
+    {
+      "id": "lavanda",
+      "tipo": "flores",
+      "nombre": "Lavanda",
+      "descripcion": "Aroma relajante y medicinal",
+      "precio": 18,
+      "stock": 90,
+      "imagen": "/lavanda.png",
+      "destacado": false
+    },
+    {
+      "id": "bambu",
+      "tipo": "decoracion",
+      "nombre": "Bambú de la suerte",
+      "descripcion": "Para la buena fortuna en el hogar",
+      "precio": 20,
+      "stock": 150,
+      "imagen": "/bambu.png",
+      "destacado": true
+    },
+    {
+      "id": "margarita",
+      "tipo": "flores",
+      "nombre": "Margarita Blanca",
+      "descripcion": "Clásicas y alegres",
+      "precio": 10,
+      "stock": 110,
+      "imagen": "/margarita.png",
+      "destacado": false
+    },
+    {
+      "id": "monstera",
+      "tipo": "interior",
+      "nombre": "Monstera Deliciosa",
+      "descripcion": "Muy popular y fácil cuidado",
+      "precio": 38,
+      "stock": 45,
+      "imagen": "/monstera.png",
+      "destacado": true
+    },
+    {
+      "id": "girasol",
+      "tipo": "flores",
+      "nombre": "Girasol Gigante",
+      "descripcion": "Flor vistosa y grande",
+      "precio": 12,
+      "stock": 95,
+      "imagen": "/girasol.png",
+      "destacado": true
+    },
+    {
+      "id": "calathea",
+      "tipo": "interior",
+      "nombre": "Calathea",
+      "descripcion": "Planta decorativa con hojas vistosas",
+      "precio": 27,
+      "stock": 70,
+      "imagen": "/calathea.png",
+      "destacado": false
+    },
+    {
+      "id": "aloe",
+      "tipo": "suculentas",
+      "nombre": "Aloe Vera",
+      "descripcion": "Con propiedades curativas",
+      "precio": 16,
+      "stock": 130,
+      "imagen": "/aloe.png",
+      "destacado": true
+    },
+    {
+      "id": "azalea",
+      "tipo": "flores",
+      "nombre": "Azalea Japónica",
+      "descripcion": "Flores abundantes y coloridas",
+      "precio": 24,
+      "stock": 60,
+      "imagen": "/azalea.png",
+      "destacado": false
+    },
+    {
+      "id": "poto",
+      "tipo": "interior",
+      "nombre": "Poto",
+      "descripcion": "Planta de interior resistente",
+      "precio": 14,
+      "stock": 100,
+      "imagen": "/poto.png",
+      "destacado": true
+    },
+    {
+      "id": "geranio",
+      "tipo": "flores",
+      "nombre": "Geranio",
+      "descripcion": "Planta ideal para balcones",
+      "precio": 11,
+      "stock": 75,
+      "imagen": "/geranio.png",
+      "destacado": false
+    },
+    {
+      "id": "dracena",
+      "tipo": "interior",
+      "nombre": "Drácena Marginata",
+      "descripcion": "Elegante y vertical",
+      "precio": 33,
+      "stock": 55,
+      "imagen": "/dracena.png",
+      "destacado": false
+    },
+    {
+      "id": "petunia",
+      "tipo": "flores",
+      "nombre": "Petunia Multicolor",
+      "descripcion": "Flores de vivos colores",
+      "precio": 9,
+      "stock": 85,
+      "imagen": "/petunia.png",
+      "destacado": true
+    },
+    {
+      "id": "croton",
+      "tipo": "interior",
+      "nombre": "Crotón",
+      "descripcion": "Hojas vistosas y coloridas",
+      "precio": 29,
+      "stock": 40,
+      "imagen": "/croton.png",
+      "destacado": true
+    },
+    {
+      "id": "gardenia",
+      "tipo": "flores",
+      "nombre": "Gardenia",
+      "descripcion": "Flores perfumadas blancas",
+      "precio": 26,
+      "stock": 50,
+      "imagen": "/gardenia.png",
+      "destacado": false
+    },
+    {
+      "id": "jade",
+      "tipo": "suculentas",
+      "nombre": "Planta de Jade",
+      "descripcion": "Símbolo de prosperidad",
+      "precio": 19,
+      "stock": 100,
+      "imagen": "/jade.png",
+      "destacado": true
+    }
+  ]
+  

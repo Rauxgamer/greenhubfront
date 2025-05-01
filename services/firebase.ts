@@ -1,19 +1,35 @@
-import { getAuth, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { getAuth, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword } from 'firebase/auth';
 import { setCookie, destroyCookie } from 'nookies';
-import { initializeApp } from "firebase/app";
+import {app} from './firebaseConfig'
+import { createOrUpdateUserProfile } from './authService';
 
-const firebaseConfig = {
-  apiKey: "...",
-  authDomain: "...",
-  projectId: "...",
-  storageBucket: "...",
-  messagingSenderId: "...",
-  appId: "..."
-};
 
-export const app = initializeApp(firebaseConfig);
 
 const auth = getAuth(app);
+export const registerUser = async (
+  email: string,
+  password: string,
+  displayName: string,
+  username: string
+) => {
+  const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+  const token = await userCredential.user.getIdToken();
+
+  // Guarda datos iniciales del usuario en Firestore
+  const { uid, email: userEmail } = userCredential.user;
+  await createOrUpdateUserProfile(uid, {
+    email: userEmail,
+    displayname: displayName,
+    username: username,
+    photoURL: '',
+    emailVerified: false,
+    createdAt: new Date(),
+    role: 'user', // rol por defecto
+    bio: 'Sin descripción'
+  });
+
+  return { userCredential, token };
+};
 
 // Login por email y password
 export const loginUser = async (email: string, password: string) => {
@@ -21,9 +37,22 @@ export const loginUser = async (email: string, password: string) => {
   const token = await userCredential.user.getIdToken();
 
   setCookie(null, 'token', token, {
-    maxAge: 30 * 24 * 60 * 60, // 30 días
+    maxAge: 30 * 24 * 60 * 60,
     path: '/',
     secure: true,
+  });
+
+  // Guarda o actualiza datos del usuario en Firestore
+  const { uid, email: userEmail, displayName, photoURL } = userCredential.user;
+  await createOrUpdateUserProfile(uid, {
+    email: userEmail,
+    displayName: displayName || 'Nuevo usuario',
+    photoURL: photoURL || '',
+    emailVerified: userCredential.user.emailVerified,
+    lastLogin: new Date(),
+    role: 'user', // rol por defecto
+    username: displayName || 'Nuevo usuario',
+    bio: 'Sin descripción'
   });
 
   return userCredential;
@@ -41,6 +70,20 @@ export const loginWithGoogle = async () => {
     secure: true,
   });
 
+  // Guarda o actualiza datos del usuario en Firestore
+  const { uid, email, displayName, photoURL } = userCredential.user;
+  await createOrUpdateUserProfile(uid, {
+    email,
+    displayName,
+    photoURL,
+    emailVerified: userCredential.user.emailVerified,
+    lastLogin: new Date(),
+    createdAt: new Date(),
+    role: 'user', // rol por defecto, puedes cambiarlo
+    username: displayName,
+    bio: 'Sin descripción'
+  });
+
   return userCredential;
 };
 
@@ -49,3 +92,4 @@ export const logoutUser = async () => {
   await auth.signOut();
   destroyCookie(null, 'token', { path: '/' });
 };
+

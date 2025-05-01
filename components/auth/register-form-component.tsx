@@ -1,7 +1,8 @@
 'use client';
 import { useState } from 'react';
 import { Button, TextField, Typography, Divider, Stack } from '@mui/material';
-import GoogleIcon from '@mui/icons-material/Google';
+import { registerUser } from '@/services/firebase';
+import { useRouter } from 'next/navigation';
 
 export default function RegisterForm() {
   const [name, setName] = useState('');
@@ -9,6 +10,22 @@ export default function RegisterForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const router = useRouter();
+
+  const handleRegister = async () => {
+    if (password !== confirmPassword) {
+      alert('Las contraseñas no coinciden');
+      return;
+    }
+
+    try {
+      await registerUser(email, password, name, username);
+      alert('Registro completado correctamente. Inicia sesión ahora.');
+      router.push('/login');
+    } catch (error: any) {
+      alert('Error en el registro: ' + error.message);
+    }
+  };
 
   return (
     <Stack spacing={2}>
@@ -59,13 +76,37 @@ export default function RegisterForm() {
         onChange={(e) => setConfirmPassword(e.target.value)}
       />
 
-      <Button variant="contained" sx={{ bgcolor: '#4CAF50', '&:hover': { bgcolor: '#2E7D32' } }}>
+      <Button
+        variant="contained"
+        sx={{ bgcolor: '#4CAF50', '&:hover': { bgcolor: '#2E7D32' } }}
+        onClick={handleRegister}
+      >
         Regístrate
       </Button>
 
       <Divider>O continúa con</Divider>
 
-      <Button variant="contained" color="error" startIcon={<GoogleIcon />}>
+      <Button
+        variant="outlined"
+        sx={{
+          bgcolor: '#fff',
+          color: '#757575',
+          textTransform: 'none',
+          borderColor: '#ddd',
+          boxShadow: 'none',
+          '&:hover': {
+            bgcolor: '#f7f7f7',
+            borderColor: '#ccc',
+          },
+        }}
+        startIcon={
+          <img
+            src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg"
+            alt="Google Logo"
+            style={{ width: 20, height: 20 }}
+          />
+        }
+      >
         Iniciar sesión con Google
       </Button>
     </Stack>
