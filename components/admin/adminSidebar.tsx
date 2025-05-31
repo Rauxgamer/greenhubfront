@@ -1,13 +1,15 @@
 'use client';
 import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
-import { Dashboard, ShoppingCart, BarChart } from '@mui/icons-material';
+import { Home, ShoppingCart, BarChart, People } from '@mui/icons-material';
+import Link from 'next/link';
 
 export default function AdminSidebar() {
   const menuItems = [
-    { text: 'Dashboard', icon: <Dashboard /> },
-    { text: 'Pedidos', icon: <ShoppingCart /> },
-    { text: 'Estadísticas', icon: <BarChart /> },
-    { text: 'Productos', icon: <ShoppingCart /> }, // Cambia el icono según corresponda
+    { text: 'HomePage', icon: <Home />, link: '/home' },
+    { text: 'Pedidos', icon: <ShoppingCart />, link: '/admin/pedidos' },
+    { text: 'Estadísticas', icon: <BarChart />, link: '/admin/estadisticas' },
+    { text: 'Productos', icon: <ShoppingCart />, link: '/admin/productos' },
+    { text: 'Usuarios', icon: <People />, link: '/admin/usuarios' },
   ];
 
   return (
@@ -34,6 +36,9 @@ export default function AdminSidebar() {
         {menuItems.map((item, index) => (
           <ListItem key={index} disablePadding>
             <ListItemButton
+              component={Link}
+              href={item.link}
+              passHref
               sx={{
                 borderRadius: '10px',
                 '&:hover': {
@@ -42,6 +47,7 @@ export default function AdminSidebar() {
                 },
               }}
             >
+
               <ListItemIcon sx={{ color: '#757575' }}>{item.icon}</ListItemIcon>
               <ListItemText primary={item.text} />
             </ListItemButton>

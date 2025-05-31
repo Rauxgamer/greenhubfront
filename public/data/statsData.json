@@ -1,0 +1,7 @@
+[
+    { "name": "Planta A", "sold": 120, "rating": 4.5 },
+    { "name": "Planta B", "sold": 95, "rating": 4.8 },
+    { "name": "Planta C", "sold": 160, "rating": 4.3 },
+    { "name": "Planta D", "sold": 80, "rating": 4.7 }
+  ]
+  

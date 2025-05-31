@@ -1,0 +1,5 @@
+[
+    { "status": "Entregado", "quantity": 150 },
+    { "status": "En proceso", "quantity": 45 },
+    { "status": "Sin entregar", "quantity": 30 }
+  ]

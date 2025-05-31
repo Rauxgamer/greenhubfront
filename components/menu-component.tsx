@@ -19,8 +19,22 @@ export default function MenuComponent() {
 
   return (
     <AppBar position="fixed" color="inherit" elevation={2}>
-      <Toolbar sx={{ justifyContent: 'space-between', paddingY: '12px' }}>
-        <Image src="/log.png" alt="Logo" width={60} height={60} />
+      <Toolbar sx={{ 
+  justifyContent: 'space-between', 
+  paddingY: '8px', // menos padding vertical
+  height: '80px',  // altura definida y adecuada para tu logo
+  alignItems: 'center' // alineación vertical centrada
+}}>
+      <Image 
+  src="/logo2.png"
+  alt="Logo"
+  width={0}
+  height={0}
+  sizes="100vw"
+  style={{ width: '200px', height: 'auto', objectFit: 'contain' }}
+  priority
+  unoptimized
+/>
 
         <TextField
           variant="outlined"
