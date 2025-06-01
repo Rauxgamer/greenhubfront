@@ -1,38 +1,39 @@
 'use client';
-import { Box, Typography } from '@mui/material';
+import { useState } from 'react';
+import { Box, Typography, useMediaQuery } from '@mui/material';
 import AdminSidebar from '@/components/admin/adminSidebar';
 import dynamic from 'next/dynamic';
+import AdminMenuComponent from '@/components/admin/AdminMenuComponent';
 
 const StatsChart = dynamic(() => import('@/components/admin/estadisticas/StatsChart'), { ssr: false });
 const OrdersChart = dynamic(() => import('@/components/admin/estadisticas/OrdersChart'), { ssr: false });
 
-import AdminMenuComponent from '@/components/admin/AdminMenuComponent';
-
 export default function AdminDashboard() {
-    return (
-      <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-        <AdminSidebar />
-        <AdminMenuComponent pageTitle={'Administrar estadísticas'}/>
-        
-            <Box component="main" sx={{
-                flexGrow: 1,
-                ml: { xs: 0, md: '280px' },
-                width: { xs: '100%', md: 'calc(100% - 280px)' },
-                mt: '80px', // Añadir margen superior correspondiente al alto del menú superior
-                p: 3,
-                overflowX: 'hidden'
-            }}>
+  const isMobile = useMediaQuery('(max-width:900px)');
+  const [menuOpen, setMenuOpen] = useState(false);
 
-          <Typography variant="h5" sx={{ mt: 4, mb: 2 }}>
-            Estadísticas de Productos
-          </Typography>
-          <StatsChart />
-  
-          <Typography variant="h5" sx={{ mt: 4, mb: 2 }}>
-            Estadísticas de Pedidos
-          </Typography>
-          <OrdersChart />
-        </Box>
+  return (
+    <Box sx={{ display: 'flex', minHeight: '100vh', flexDirection: isMobile ? 'column' : 'row' }}>
+      <AdminMenuComponent pageTitle="Administrar estadísticas" onMenuClick={() => setMenuOpen(true)} />
+      <AdminSidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
+
+      <Box component="main" sx={{
+        flexGrow: 1,
+        ml: { xs: 0, md: '280px' },
+        mt: '80px',
+        p: { xs: 1, md: 3 },
+        overflowX: 'hidden'
+      }}>
+        <Typography variant="h5" sx={{ mt: 4, mb: 2 }}>
+          Estadísticas de Productos
+        </Typography>
+        <StatsChart />
+
+        <Typography variant="h5" sx={{ mt: 4, mb: 2 }}>
+          Estadísticas de Pedidos
+        </Typography>
+        <OrdersChart />
       </Box>
-    );
+    </Box>
+  );
 }

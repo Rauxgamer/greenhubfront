@@ -2,12 +2,28 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { AppBar, Toolbar, IconButton, TextField, InputAdornment, Button, Tooltip, Avatar, Typography, Box } from '@mui/material';
-import { ShoppingCart, Search, Person } from '@mui/icons-material';
+import {
+  AppBar,
+  Toolbar,
+  IconButton,
+  TextField,
+  InputAdornment,
+  Button,
+  Tooltip,
+  Avatar,
+  Typography,
+  Box,
+  useMediaQuery,
+} from '@mui/material';
+import { ShoppingCart, Search, Person, Menu as MenuIcon } from '@mui/icons-material';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { useTheme } from '@mui/material/styles';
 
-export default function MenuComponent() {
-  const [user, setUser] = useState<any>(null);
+export default function MenuComponent({ onMenuClick, isAdmin }) {
+  const [user, setUser] = useState(null);
+  const theme = useTheme();
+  // Definimos “small” como ancho < 900px (igual que tu sidebar)
+  const isMobile = useMediaQuery(theme.breakpoints.down('md')); // md ≈ 900px
 
   useEffect(() => {
     const auth = getAuth();
@@ -18,24 +34,54 @@ export default function MenuComponent() {
   }, []);
 
   return (
-    <AppBar position="fixed" color="inherit" elevation={2}>
-      <Toolbar sx={{ 
-  justifyContent: 'space-between', 
-  paddingY: '8px', // menos padding vertical
-  height: '80px',  // altura definida y adecuada para tu logo
-  alignItems: 'center' // alineación vertical centrada
-}}>
-      <Image 
-  src="/logo2.png"
-  alt="Logo"
-  width={0}
-  height={0}
-  sizes="100vw"
-  style={{ width: '200px', height: 'auto', objectFit: 'contain' }}
-  priority
-  unoptimized
-/>
+    <AppBar
+      position="fixed"
+      color="inherit"
+      elevation={2}
+      sx={{
+        // zIndex mayor que el Drawer para que siempre quede encima
+        zIndex: (theme) => theme.zIndex.drawer + 1,
+      }}
+    >
+      <Toolbar
+        sx={{
+          justifyContent: 'space-between',
+          paddingY: '8px',
+          height: '80px',
+          alignItems: 'center',
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          {/**
+            - Solo si es admin y estamos en móvil, mostramos el botón hamburguesa.
+            - En pantallas >= md (900px), el botón desaparece automáticamente.
+          **/}
+          {isAdmin && isMobile && (
+            <IconButton
+              color="inherit"
+              aria-label="open sidebar"
+              edge="start"
+              onClick={onMenuClick}
+              sx={{ mr: 1 }}
+            >
+              <MenuIcon />
+            </IconButton>
+          )}
 
+          {/* Logo */}
+          <Image
+            src="/logo2.png"
+            alt="Logo"
+            width={0}
+            height={0}
+            sizes="100vw"
+            style={{ width: '200px', height: 'auto', objectFit: 'contain' }}
+            priority
+            unoptimized
+          />
+        </Box>
+
+        {/* Search Bar centrada */}
         <TextField
           variant="outlined"
           size="small"
@@ -59,17 +105,20 @@ export default function MenuComponent() {
           }}
         />
 
+        {/* Iconos/User a la derecha */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Tooltip title="Carrito">
             <IconButton component={Link} href="/checkout">
               <ShoppingCart />
             </IconButton>
           </Tooltip>
-          <Button component={Link} href="/products">Productos</Button>
+          <Button component={Link} href="/products">
+            Productos
+          </Button>
 
           <Button
             component={Link}
-            href={user ? "/user" : "/login"}
+            href={user ? '/user' : '/login'}
             sx={{
               display: 'flex',
               alignItems: 'center',

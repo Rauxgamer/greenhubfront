@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from 'react';
-import { Box, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
+import { Box, Select, MenuItem, FormControl, InputLabel, useMediaQuery } from '@mui/material';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   PieChart, Pie, Cell, AreaChart, Area, LineChart, Line,
@@ -12,6 +12,7 @@ export default function StatsChart() {
   const [data, setData] = useState([]);
   const [chartType, setChartType] = useState('bar');
   const [sortType, setSortType] = useState('sold');
+  const isMobile = useMediaQuery('(max-width:600px)');
 
   useEffect(() => {
     fetchStatsData().then((data) => setData(data));
@@ -21,7 +22,7 @@ export default function StatsChart() {
 
   return (
     <Box sx={{
-      p: 4,
+      p: isMobile ? 2 : 4,
       boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
       borderRadius: '12px',
       bgcolor: 'background.paper',
@@ -29,7 +30,12 @@ export default function StatsChart() {
       maxWidth: '900px',
       margin: 'auto'
     }}>
-      <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+      <Box sx={{
+        display: 'flex',
+        flexDirection: isMobile ? 'column' : 'row',
+        gap: 2,
+        mb: 2
+      }}>
         <FormControl sx={{ minWidth: 150 }}>
           <InputLabel>Ordenar por</InputLabel>
           <Select value={sortType} label="Ordenar por" onChange={(e) => setSortType(e.target.value)}>
@@ -50,12 +56,12 @@ export default function StatsChart() {
         </FormControl>
       </Box>
 
-      <ResponsiveContainer width="100%" height={400}>
+      <ResponsiveContainer width="100%" height={isMobile ? 300 : 400}>
         {chartType === 'bar' && (
-          <BarChart data={sortedData}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-            <XAxis dataKey="name" stroke="#888" />
-            <YAxis stroke="#888" />
+          <BarChart data={sortedData} layout={isMobile ? 'vertical' : 'horizontal'}>
+            <CartesianGrid strokeDasharray="3 3" vertical={!isMobile} horizontal={isMobile} />
+            <XAxis dataKey="name" stroke="#888" type={isMobile ? 'number' : 'category'} />
+            <YAxis stroke="#888" type={isMobile ? 'category' : 'number'} dataKey={isMobile ? "name" : undefined} />
             <Tooltip />
             <Legend verticalAlign="top" />
             <Bar dataKey={sortType} fill="#5B8FF9" radius={[8, 8, 0, 0]} />
@@ -64,7 +70,7 @@ export default function StatsChart() {
 
         {chartType === 'pie' && (
           <PieChart>
-            <Pie data={sortedData} dataKey={sortType} nameKey="name" cx="50%" cy="50%" outerRadius={120}>
+            <Pie data={sortedData} dataKey={sortType} nameKey="name" cx="50%" cy="50%" outerRadius={isMobile ? 80 : 120}>
               {sortedData.map((_, index) => (
                 <Cell key={index} fill={["#8884d8", "#82ca9d", "#ffc658", "#ff8042"][index % 4]} />
               ))}
