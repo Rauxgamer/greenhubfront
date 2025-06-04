@@ -73,7 +73,7 @@ export default function AdminSidebar({
 
   // Lista de ítems: texto, icono y ruta
   const menuItems = [
-    { text: 'Dashboard', icon: <Home />, link: '/admin/dashboard' },
+    { text: 'Pagina principal', icon: <Home />, link: '/home' },
     { text: 'Pedidos', icon: <ShoppingCart />, link: '/admin/pedidos' },
     { text: 'Estadísticas', icon: <BarChart />, link: '/admin/estadisticas' },
     { text: 'Productos', icon: <ShoppingCart />, link: '/admin/productos' },

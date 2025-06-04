@@ -1,6 +1,6 @@
 // src/app/page.tsx (o HomePage.jsx)
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Box, Toolbar, useMediaQuery } from '@mui/material';
 import MenuComponent from '@/components/menu-component';
 import CarrouselComponent from '@/components/public/carrousel-component';
@@ -21,6 +21,9 @@ export default function HomePage() {
   // Detectar si estamos en móvil (< 900px)
   const isMobile = useMediaQuery('(max-width:900px)');
 
+  // Ref para saber si ya inicializamos el estado en Desktop al menos una vez
+  const initializedDesktop = useRef(false);
+
   useEffect(() => {
     const auth = getAuth();
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -31,15 +34,23 @@ export default function HomePage() {
 
         if (esAdmin) {
           if (isMobile) {
-            // En móvil, cerramos el sidebar y lo dejamos colapsado
+            // Si estamos en Mobile, siempre colapsado y cerrado
             setSidebarOpen(false);
             setSidebarCollapsed(true);
+            // Como estamos en mobile, reseteamos la inicialización de desktop
+            initializedDesktop.current = false;
           } else {
-            // En desktop, abrimos y expandimos por defecto
-            setSidebarOpen(true);
-            setSidebarCollapsed(false);
+            // Si estamos en Desktop
+            if (!initializedDesktop.current) {
+              // Solo la PRIMERA vez que llegamos a Desktop, abrimos y expandimos
+              setSidebarOpen(true);
+              setSidebarCollapsed(false);
+              initializedDesktop.current = true;
+            }
+            // Si ya inicializamos Desktop antes, no hacemos nada y dejamos que el usuario controle el colapsado
           }
         } else {
+          // Si no es admin, siempre cerrado
           setSidebarOpen(false);
         }
       } else {
@@ -60,15 +71,18 @@ export default function HomePage() {
       {/* AppBar superior */}
       <MenuComponent
         onMenuClick={() => {
-          // Solo en móvil abrimos/cerramos el temporary drawer
           if (isMobile) {
-            setSidebarOpen((prev) => !prev);
+            // En móvil: abrimos/cerramos el Drawer temporary
+            setSidebarOpen(prev => !prev);
+          } else {
+            // En desktop: colapsamos/expandimos
+            setSidebarCollapsed(prev => !prev);
           }
         }}
         isAdmin={isAdmin}
       />
 
-      {/* Dejar el espacio de 80px bajo el AppBar */}
+      {/* Toolbar vacío para dejar 80px bajo el AppBar */}
       <Toolbar />
 
       <Box display="flex" flex={1}>
@@ -82,29 +96,30 @@ export default function HomePage() {
           />
         )}
 
-        {/* Contenido principal, con padding reducido en móvil */}
+        {/* Contenido principal */}
         <Box
           component="main"
           sx={{
             flexGrow: 1,
-            p: isMobile ? 1 : 2, // Menos padding en móvil (<900px)
+            p: isMobile ? 1 : 2, // Menos padding en móvil
             ml:
               isAdmin && !isMobile
-                ? sidebarOpen
-                  ? sidebarCollapsed
-                    ? '60px'
-                    : '240px'
-                  : 0
+                ? (sidebarOpen
+                    ? sidebarCollapsed
+                      ? '60px'
+                      : '240px'
+                    : 0)
                 : 0,
             transition: 'margin-left 0.3s ease',
           }}
         >
           <CarrouselComponent />
           <ContentComponent />
-          <FooterComponent />
         </Box>
       </Box>
-      
+
+      {/* Footer fuera del main para que ocupe 100% de ancho */}
+      <FooterComponent />
     </Box>
   );
 }
