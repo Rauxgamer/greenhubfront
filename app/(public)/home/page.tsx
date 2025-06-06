@@ -111,15 +111,17 @@ export default function HomePage() {
                     : 0)
                 : 0,
             transition: 'margin-left 0.3s ease',
+            
           }}
         >
           <CarrouselComponent />
           <ContentComponent />
+          <FooterComponent />
         </Box>
       </Box>
 
       {/* Footer fuera del main para que ocupe 100% de ancho */}
-      <FooterComponent />
+      
     </Box>
   );
 }
