@@ -182,13 +182,11 @@ export default function MetaLandingPage() {
               </div>
             </div>
             <div className="hidden md:flex items-center space-x-6 text-sm font-medium">
-              {["Productos", "Plantas", "Flores", "Blog"].map((item) => (
+              {["Productos", "Blog"].map((item) => (
                 <Link
                 key={item}
                 href={
                   item === "Productos" ? "/products" :  
-                  item === "Plantas" ? "/products?categoria=plantas" :
-                  item === "Flores" ? "/products?categoria=flores" :
                   item === "Blog" ? "/blog" : "/home"
                 }
                 className={`hover:text-green-600 transition-colors`}
@@ -223,13 +221,11 @@ export default function MetaLandingPage() {
               className="bg-transparent text-sm placeholder-gray-500 focus:outline-none w-full"
             />
           </div>
-          {["Productos", "Plantas", "Flores", "Blog", "Mi Cuenta", "Favoritos"].map((item) => (
+          {["Productos", "Blog", "Mi Cuenta", "Favoritos"].map((item) => (
           <Link
           key={item}
           href={
             item === "Productos" ? "/products" :  
-            item === "Plantas" ? "/products?categoria=plantas" :
-            item === "Flores" ? "/products?categoria=flores" :
             item === "Blog" ? "/blog" : "/home"
           }
           className="block py-2 hover:text-green-600 transition-colors text-lg"

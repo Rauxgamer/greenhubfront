@@ -6,7 +6,7 @@ import Link from 'next/link';
 import LoginForm from '@/components/auth/login-form-component';
 import RegisterForm from '@/components/auth/register-form-component';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import HomeIcon from '@mui/icons-material/Home';
+import { HomeIcon } from 'lucide-react';
 
 export default function LoginPage() {
   const [isLogin, setIsLogin] = useState(true);
