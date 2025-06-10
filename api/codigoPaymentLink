@@ -1,0 +1,57 @@
+Install-Package Stripe.net
+
+
+
+using Stripe;
+using System;
+using System.Threading.Tasks;
+
+class Program
+{
+    static async Task Main(string[] args)
+    {
+        // Usa tu clave secreta de Stripe
+        StripeConfiguration.ApiKey = "sk_test_51RYAR4GfOS0Nu9vPhPalh4asIvzLYkZIxi5Szo3mdlD95Ewi1oGRL0Bd7vtKk9BFdBkf1P8QfZqUHiWhQhcZdkZ000cyQHvNcu0";
+
+        // Crear un item de pago
+        var options = new PaymentLinkCreateOptions
+        {
+            LineItems = new List<PaymentLinkLineItemOptions>
+            {
+                new PaymentLinkLineItemOptions
+                {
+                    PriceData = new PaymentLinkLineItemPriceDataOptions
+                    {
+                        Currency = "usd", // Moneda en la que deseas cobrar (ejemplo: usd)
+                        ProductData = new PaymentLinkLineItemPriceDataProductDataOptions
+                        {
+                            Name = "Producto Ejemplo" // Nombre del producto
+                        },
+                        UnitAmount = 2000, // Precio en centavos (por ejemplo, 20.00 USD es 2000)
+                    },
+                    Quantity = 1, // Cantidad del producto
+                }
+            },
+            AfterCompletion = new PaymentLinkAfterCompletionOptions
+            {
+                Type = "redirect",
+                Redirect = new PaymentLinkAfterCompletionRedirectOptions
+                {
+                    Url = "https://tusitio.com/gracias" // URL de redirección después del pago
+                }
+            }
+        };
+
+        // Crear el enlace de pago
+        var service = new PaymentLinkService();
+        try
+        {
+            var paymentLink = await service.CreateAsync(options);
+            Console.WriteLine($"Payment Link creado: {paymentLink.Url}");
+        }
+        catch (StripeException e)
+        {
+            Console.WriteLine($"Error al crear el enlace de pago: {e.Message}");
+        }
+    }
+}
