@@ -9,7 +9,7 @@ import VideoContentCard from "@/components/public/video-content-card"
 import Footer from "@/components/footer-component"
 import Link from "next/link"
 import AdminSidebar from "@/components/admin/adminSidebar"
-
+import Header from "@/components/header-component"
 
 import { useIntersectionObserver } from "@/hooks/use-intersection-observer" // Import the hook
 import { useAuth } from "@/context/AuthContext";  // Asegúrate de importar el hook useAuth
@@ -141,20 +141,11 @@ export default function MetaLandingPage() {
     ? "ml-20" // Sidebar collapsed (small width)
     : "ml-64";
 
-     const headerClass = isSidebarOpen ? (collapsed ? "left-20" : "left-64") : "left-0";
 
   const { isAuthenticated, isAdmin } = useAuth(); // Accede al contexto de autenticación
   const heroVideoUrl =
     "https://d.media.kavehome.com/video/upload/w_auto,ar_1.7777777777777777,dpr_2,f_auto/v1748876467/home-page-videos/a-sumers-table-slide-desktop.es_ES.mp4"
 
-  const togglePlayPause = () => {
-    if (videoRef.current) {
-      if (videoRef.current.paused) videoRef.current.play()
-      else videoRef.current.pause()
-      setIsPlaying(!isPlaying)
-    }
-  }
-  const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen)
 
   useEffect(() => {
     if (videoRef.current) videoRef.current.muted = true
@@ -168,122 +159,24 @@ export default function MetaLandingPage() {
     setIsSidebarOpen(true)
   }
 }, [isAuthenticated, isAdmin]);
+
   return (
     <div className="min-h-screen bg-white text-gray-800 font-sans flex">
-      {/* Sidebar */}
-        <AdminSidebar
-          open={isSidebarOpen}
-          onClose={() => setIsSidebarOpen(false)}
-          variant="permanent"
-          collapsed={collapsed}
-          setCollapsed={setCollapsed}
-        />
-        
+      <AdminSidebar
+                open={isSidebarOpen}
+                onClose={() => setIsSidebarOpen(false)}
+                variant="permanent"
+                collapsed={collapsed}
+                setCollapsed={setCollapsed}
+              />
       <div className={`flex-1 ${contentClass} transition-all duration-300`}>
-         <header className={`fixed top-0 ${headerClass} right-0 z-50 transition-all duration-300`}>
-         <div className={`bg-green-600 text-white text-xs text-center py-2 transition-opacity duration-300 ${headerScrolled ? "opacity-100" : "opacity-100"}`}>
-          <a href="#" className="hover:underline">
-            Oferta Especial: ¡20% en Orquídeas esta Semana! <ChevronRight className="inline h-3 w-3" />
-          </a>
-        </div>
-        <div
-          className={`h-16 transition-all duration-300 ${headerScrolled ? "bg-white/90 backdrop-blur-md shadow-lg" : "bg-transparent"}`}
-        >
-          <nav
-            className={`px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between ${headerScrolled ? "text-gray-800" : "text-white"}`}
-          >
-            <div className="flex items-center space-x-4">
-              <button onClick={toggleMobileMenu} aria-label="Toggle menu" className="md:hidden hover:text-green-600">
-                <Menu className="h-6 w-6" />
-              </button>
-              <a href="#" className="text-2xl font-bold tracking-tight">
-                Green<span className="text-green-600">Hub</span>
-              </a>
-              <div
-                className={`hidden md:flex items-center rounded-md px-3 py-1.5 ${headerScrolled ? "bg-gray-100" : "bg-white/20"}`}
-              >
-                <Search className={`h-4 w-4 mr-2 ${headerScrolled ? "text-gray-500" : "text-gray-100"}`} />
-                <input
-                  type="search"
-                  placeholder="Buscar flores, plantas..."
-                  className={`bg-transparent text-sm focus:outline-none w-64 ${headerScrolled ? "text-gray-800 placeholder-gray-500" : "text-white placeholder-gray-200"}`}
-                />
-              </div>
-            </div>
-            <div className="hidden md:flex items-center space-x-6 text-sm font-medium">
-              {["Productos", "Blog"].map((item) => (
-                <Link
-                key={item}
-                href={
-                  item === "Productos" ? "/products" :  
-                  item === "Blog" ? "/blog" : "/home"
-                }
-                className={`hover:text-green-600 transition-colors`}
-              >
-                {item}
-              </Link>
-              ))}
-              
-              {[User, Heart, ShoppingBag].map((Icon, idx) => (
-                <button
-                  key={idx}
-                  aria-label="User action"
-                  className={`hover:text-green-600 transition-colors`}
-                >
-                  {idx === 0 ? (
-                    <Link href="/login">
-                      <Icon className="h-5 w-5" />
-                    </Link>
-                  ) : (
-                    <Icon className="h-5 w-5" />
-                  )}
-                </button>
-              ))}
-            </div>
-            <div className="md:hidden flex items-center space-x-3">
-              {[Search, User, ShoppingBag].map((Icon, idx) => (
-                <button
-                  key={idx}
-                  aria-label="User action"
-                  className={`hover:text-green-600 transition-colors`}
-                >
-                  {idx === 1 ? (
-                    <Link href="/login">
-                      <Icon className="h-5 w-5" />
-                    </Link>
-                  ) : (
-                    <Icon className="h-5 w-5" />
-                  )}
-                </button>
-              ))}
-            </div>
-          </nav>
-        </div>
-      </header>
-      {isMobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 top-[calc(1.75rem+4rem)] z-40 bg-white/95 text-gray-800 p-6 space-y-4 backdrop-blur-md shadow-xl">
-          <div className="flex items-center bg-gray-100 rounded-md px-3 py-2 mb-6">
-            <Search className="h-5 w-5 text-gray-500 mr-2" />
-            <input
-              type="search"
-              placeholder="Buscar flores..."
-              className="bg-transparent text-sm placeholder-gray-500 focus:outline-none w-full"
-            />
-          </div>
-          {["Productos", "Blog", "Mi Cuenta", "Favoritos"].map((item) => (
-          <Link
-          key={item}
-          href={
-            item === "Productos" ? "/products" :  
-            item === "Blog" ? "/blog" : "/home"
-          }
-          className="block py-2 hover:text-green-600 transition-colors text-lg"
-        >
-          {item}
-        </Link>
-          ))}
-        </div>
-      )} 
+        <Header
+        collapsed={collapsed}
+        isSidebarOpen={isSidebarOpen}
+        isMobileMenuOpen={isMobileMenuOpen}
+        setIsMobileMenuOpen={setIsMobileMenuOpen} // Pasa la función para cambiar el estado
+      />
+
       <main className="relative h-screen overflow-hidden">
         <video
           ref={videoRef}

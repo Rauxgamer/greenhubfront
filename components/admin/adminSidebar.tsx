@@ -42,23 +42,31 @@ export default function AdminSidebar({
     { text: "Usuarios", link: "/admin/usuarios", icon: <PersonStanding /> },
   ];
 
-  return (
+return (
     sidebarVisible && (
       <div
         className={`${
           open ? "block" : "hidden"
-        } fixed top-0 left-0 bg-white shadow-md h-full overflow-y-auto transition-all duration-300 ${collapsed ? "w-20" : "w-64"}`}
+        } fixed top-0 left-0 bg-white shadow-md h-full overflow-y-auto transition-all duration-300 ${
+          collapsed ? "w-20" : "w-64"
+        }`}
       >
-        <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200">
-          <h2 className={`font-semibold text-lg ${collapsed ? "hidden" : ""}`}>Panel de Administración</h2>
+        <div className="flex items-center justify-between px-4 py-5 border-b border-gray-200">
+          <h2
+            className={`font-semibold text-lg ${collapsed ? "hidden" : ""} border-l-4 pl-2 border-green-600`}
+          >
+            Panel de Administración
+          </h2>
           <button
             onClick={() => setCollapsed(!collapsed)}
             className="p-2 flex items-center justify-center"
           >
             {collapsed ? (
-              <ChevronRight className="h-5 w-5" />
+              <div className="py-2">
+              <ChevronRight  />
+              </div>
             ) : (
-              <ChevronLeft className="h-5 w-5" />
+              <ChevronLeft />
             )}
           </button>
         </div>

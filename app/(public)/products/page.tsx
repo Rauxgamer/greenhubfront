@@ -11,6 +11,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Label } from "@radix-ui/react-label";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Slider } from "@radix-ui/react-slider"; // Slider component for price range
+import { useAuth } from "@/context/AuthContext";
+import Header from "@/components/header-component";
+import AdminSidebar from "@/components/admin/adminSidebar";
 
 interface Product {
   nombre: string;
@@ -126,79 +129,40 @@ export default function PlantasPage() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+const { isAuthenticated, isAdmin } = useAuth(); // Accede al contexto de autenticación
+  
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [collapsed, setCollapsed] = useState(false);
+  
+     const contentClass = !isSidebarOpen
+      ? "w-full" // Full width if sidebar is not present
+      : collapsed
+      ? "ml-20" // Sidebar collapsed (small width)
+      : "ml-64";
+
+       useEffect(() => {
+        if(isAuthenticated && isAdmin){
+          setIsSidebarOpen(true)
+        }
+      }, [isAuthenticated, isAdmin]);
+
   return (
     <div className="min-h-screen bg-white text-gray-800 font-sans">
-      <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300`}>
-        <div className={`bg-green-600 text-white text-xs text-center py-2 transition-opacity duration-300 ${headerScrolled ? "opacity-100" : "opacity-100"}`}>
-          <a href="#" className="hover:underline">
-            Oferta Plantas: ¡15% en todas las Macetas! <ChevronRight className="inline h-3 w-3" />
-          </a>
-        </div>
-        <div className="h-16 transition-all duration-300 bg-white/90 backdrop-blur-md shadow-lg">
-          <nav className="px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between text-gray-800">
-            <div className="flex items-center space-x-4">
-              <button onClick={toggleMobileMenu} aria-label="Toggle menu" className="md:hidden hover:text-green-600">
-                <Menu className="h-6 w-6" />
-              </button>
-              <a href="/" className="text-2xl font-bold tracking-tight">
-                Green<span className="text-green-600">Hub</span>
-              </a>
-              <div className="hidden md:flex items-center rounded-md px-3 py-1.5 bg-gray-100">
-                <Search className="h-4 w-4 mr-2 text-gray-500" />
-                <input
-                  type="search"
-                  placeholder="Buscar flores, plantas..."
-                  className="bg-transparent text-sm focus:outline-none w-64 text-gray-800 placeholder-gray-500"
-                />
-              </div>
-            </div>
-            <div className="hidden md:flex items-center space-x-6 text-sm font-medium">
-              {["Productos", "Blog"].map((item) => (
-                <Link
-                  key={item}
-                  href={
-                    item === "Productos" ? "/products" :
-                    item === "Blog" ? "/blog" : "/home"
-                  }
-                  className={`transition-colors ${item === "Productos" ? "text-green-600 font-semibold hover:text-green-700" : "text-gray-700 hover:text-green-600"}`}
-                >
-                  {item}
-                </Link>
-              ))}
-              {[User, Heart, ShoppingBag].map((Icon, idx) => (
-                <button key={idx} aria-label="User action" className={`hover:text-green-600 transition-colors`}>
-                  <Icon className="h-5 w-5" />
-                </button>
-              ))}
-            </div>
-          </nav>
-        </div>
-      </header>
-      {isMobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 top-[calc(1.75rem+4rem)] z-40 bg-white/95 text-gray-800 p-6 space-y-4 backdrop-blur-md shadow-xl">
-          <div className="flex items-center bg-gray-100 rounded-md px-3 py-2 mb-6">
-            <Search className="h-5 w-5 text-gray-500 mr-2" />
-            <input
-              type="search"
-              placeholder="Buscar flores..."
-              className="bg-transparent text-sm placeholder-gray-500 focus:outline-none w-full"
-            />
-          </div>
-          {["Productos", "Blog", "Mi Cuenta", "Favoritos"].map((item) => (
-          <Link
-          key={item}
-          href={
-            item === "Productos" ? "/products" :  
-            item === "Blog" ? "/blog" : "/home"
-          }
-          className="block py-2 hover:text-green-600 transition-colors text-lg"
-        >
-          {item}
-        </Link>
-          ))}
-        </div>
-      )} 
-
+      {/* Sidebar */}
+              <AdminSidebar
+                open={isSidebarOpen}
+                onClose={() => setIsSidebarOpen(false)}
+                variant="permanent"
+                collapsed={collapsed}
+                setCollapsed={setCollapsed}
+              />
+       <div className={`flex-1 ${contentClass} transition-all duration-300`}>
+        <Header
+        collapsed={collapsed}
+        isSidebarOpen={isSidebarOpen}
+        isMobileMenuOpen={isMobileMenuOpen}
+        setIsMobileMenuOpen={setIsMobileMenuOpen} // Pasa la función para cambiar el estado
+      />
       <main className="pt-[calc(1.75rem+4rem)]">
         <section className="relative h-[50vh] sm:h-[60vh] md:h-[70vh] flex items-center justify-center text-center text-white">
           <Image src="/plant-hero-background.png" alt="Fondo de plantas exuberantes" fill className="object-cover z-0" priority />
@@ -291,6 +255,7 @@ export default function PlantasPage() {
       </main>
       <Footer />
     </div>
+  </div>
   );
 }
 
