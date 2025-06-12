@@ -93,6 +93,7 @@ export default function AdminDashboard() {
           Estadísticas de Pedidos
         </Typography>
         <OrdersChart />
+        
         {/* <Typography variant="h5" sx={{ mt: 4, mb: 2 }}>
           Añadir productos plantas
         </Typography> */}

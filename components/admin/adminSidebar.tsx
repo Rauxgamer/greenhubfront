@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext"; // Usamos el hook de autenticación
 import { Home, ShoppingCart, BarChart, PersonStanding,ChevronLeft,ChevronRight  } from "lucide-react"; // Importa los íconos
+import Link from "next/link";
 
 interface AdminSidebarProps {
   open: boolean;
@@ -73,10 +74,11 @@ return (
 
         <div className="mt-4 space-y-4 px-4">
           {menuItems.map((item, index) => (
+            <Link href={item.link} key={item.text}>
             <div
               key={item.text}
               className={`${
-                pathname === item.link || pathname.startsWith(item.link + "/")
+                pathname === item.link 
                   ? "bg-green-100 text-green-600"
                   : "text-gray-700"
               } hover:bg-green-100 hover:text-green-600 p-2 rounded-md transition-colors duration-300 flex items-center`}
@@ -84,6 +86,7 @@ return (
               <div className="mr-2">{item.icon}</div>
               {!collapsed && <span>{item.text}</span>}
             </div>
+            </Link>
           ))}
         </div>
       </div>
