@@ -1,4 +1,4 @@
-import { getAuth, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword } from 'firebase/auth';
+import { getAuth, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, onAuthStateChanged  } from 'firebase/auth';
 import { setCookie, destroyCookie } from 'nookies';
 import {app} from './firebaseConfig'
 import { createOrUpdateUserProfile } from './authService';
@@ -73,15 +73,7 @@ export const loginWithGoogle = async () => {
   // Guarda o actualiza datos del usuario en Firestore
   const { uid, email, displayName, photoURL } = userCredential.user;
   await createOrUpdateUserProfile(uid, {
-    email,
-    displayName,
-    photoURL,
-    emailVerified: userCredential.user.emailVerified,
     lastLogin: new Date(),
-    createdAt: new Date(),
-    role: 'user', // rol por defecto, puedes cambiarlo
-    username: displayName,
-    bio: 'Sin descripción'
   });
 
   return userCredential;
@@ -92,4 +84,5 @@ export const logoutUser = async () => {
   await auth.signOut();
   destroyCookie(null, 'token', { path: '/' });
 };
+export {auth,onAuthStateChanged}
 

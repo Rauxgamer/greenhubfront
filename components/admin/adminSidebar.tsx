@@ -1,34 +1,15 @@
-'use client';
-import { useEffect, useRef } from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import {
-  Box,
-  Drawer,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  IconButton,
-  Typography,
-  useMediaQuery,
-} from '@mui/material';
-import {
-  Home,
-  ShoppingCart,
-  BarChart,
-  People,
-  ChevronLeft,
-  ChevronRight,
-} from '@mui/icons-material';
-import { useTheme } from '@mui/material/styles';
+"use client";
+
+import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
+import { useAuth } from "@/context/AuthContext"; // Usamos el hook de autenticación
+import { Home, ShoppingCart, BarChart, PersonStanding,ChevronLeft,ChevronRight  } from "lucide-react"; // Importa los íconos
 
 interface AdminSidebarProps {
-  open: boolean;                       // Si el Drawer está abierto (persistent) o visible (temporary en móvil)
-  onClose: () => void;                 // Callback para cerrar el Drawer en modo "temporary"
-  variant: 'permanent' | 'temporary';  // Define si es permanente (desktop) o temporal (móvil)
-  collapsed: boolean;                  // Estado externo: true = colapsado (60px), false = expandido (240px)
+  open: boolean;
+  onClose: () => void;
+  variant: "permanent" | "temporary";
+  collapsed: boolean;
   setCollapsed: (value: boolean) => void;
 }
 
@@ -39,148 +20,65 @@ export default function AdminSidebar({
   collapsed,
   setCollapsed,
 }: AdminSidebarProps) {
+  const { isAuthenticated, isAdmin } = useAuth(); // Usamos el hook de autenticación
   const pathname = usePathname();
-  const theme = useTheme();
-  // “isMobile” será true si ancho <= md (~900px)
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
-  // useRef para saber si ya inicializamos el estado en desktop
-  const initializedDesktop = useRef(false);
-
+  const [sidebarVisible, setSidebarVisible] = useState(false); // Para controlar la visibilidad del sidebar
+  
   useEffect(() => {
-    if (isMobile) {
-      // Siempre que estemos en móvil, colapsamos el sidebar
-      setCollapsed(true);
-      // Y dejamos que initializedDesktop vuelva a false (para que, si volvemos a desktop, 
-      // sepamos que debemos inicializar allí otra vez)
-      initializedDesktop.current = false;
+    if (isAuthenticated && isAdmin) {
+      setSidebarVisible(true); // Solo mostrar el sidebar si el usuario está autenticado y es admin
     } else {
-      // Estamos en desktop
-      // Si aún no hemos inicializado el estado en desktop => expandimos
-      if (!initializedDesktop.current) {
-        setCollapsed(false);           // Por defecto, expandido (240px)
-        initializedDesktop.current = true; // Marcamos que ya inicializamos en desktop
-      }
-      // Si ya inicializamos alguna vez en desktop, NO hacemos setCollapsed(false) de nuevo,
-      // para no “forzar” la expansión cuando el usuario lo colapse manualmente.
+      setSidebarVisible(false); // Si no es admin o no está autenticado, ocultar el sidebar
     }
-  }, [isMobile, setCollapsed]);
+  }, [isAuthenticated, isAdmin]);
 
-  // Función para saber si la ruta está activa
-  const isRouteActive = (href: string) => {
-    return pathname === href || pathname.startsWith(href + '/');
-  };
-
-  // Lista de ítems: texto, icono y ruta
+  // Lista de ítems con texto, ruta e íconos
   const menuItems = [
-    { text: 'Pagina principal', icon: <Home />, link: '/home' },
-    { text: 'Pedidos', icon: <ShoppingCart />, link: '/admin/pedidos' },
-    { text: 'Estadísticas', icon: <BarChart />, link: '/admin/estadisticas' },
-    { text: 'Productos', icon: <ShoppingCart />, link: '/admin/productos' },
-    { text: 'Usuarios', icon: <People />, link: '/admin/usuarios' },
+    { text: "Página principal", link: "/home", icon: <Home /> },
+    { text: "Pedidos", link: "/admin/pedidos", icon: <ShoppingCart /> },
+    { text: "Estadísticas", link: "/admin/estadisticas", icon: <BarChart /> },
+    { text: "Productos", link: "/admin/productos", icon: <ShoppingCart /> },
+    { text: "Usuarios", link: "/admin/usuarios", icon: <PersonStanding /> },
   ];
 
-  // Ancho dinámico: 60px colapsado, 240px expandido
-  const drawerWidth = collapsed ? 60 : 240;
-  // Altura total menos AppBar (80px)
-  const drawerHeight = 'calc(100vh - 80px)';
-
   return (
-    <Drawer
-      variant={variant === 'temporary' ? 'temporary' : 'persistent'}
-      open={open}
-      onClose={onClose}
-      ModalProps={{
-        keepMounted: true,  // Mejora rendimiento en móvil
-      }}
-      sx={{
-        '& .MuiDrawer-paper': {
-          width: drawerWidth,
-          boxSizing: 'border-box',
-          position: 'fixed',
-          top: '80px',
-          left: 0,
-          height: drawerHeight,
-          overflowX: 'hidden',
-          transition: 'width 0.3s ease',
-          borderRight: '1px solid rgba(0,0,0,0.12)',
-        },
-      }}
-    >
-      {/* 
-        Encabezado con título y botón de colapsar/expandir 
-      */}
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: collapsed ? 'center' : 'space-between',
-          px: 1,
-          height: '64px',
-          borderBottom: '1px solid rgba(0,0,0,0.12)',
-        }}
+    sidebarVisible && (
+      <div
+        className={`${
+          open ? "block" : "hidden"
+        } fixed top-0 left-0 bg-white shadow-md h-full overflow-y-auto transition-all duration-300 ${collapsed ? "w-20" : "w-64"}`}
       >
-        {!collapsed && (
-          <Typography variant="h6" noWrap>
-            Admin Panel
-          </Typography>
-        )}
-        <IconButton
-          onClick={() => setCollapsed(prev => !prev)}
-          aria-label={collapsed ? 'Expandir sidebar' : 'Colapsar sidebar'}
-          sx={
-            collapsed
-              ? {
-                  display: 'flex',
-                  margin: '0 auto',
-                }
-              : {}
-          }
-        >
-          {collapsed ? <ChevronRight /> : <ChevronLeft />}
-        </IconButton>
-      </Box>
+        <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200">
+          <h2 className={`font-semibold text-lg ${collapsed ? "hidden" : ""}`}>Panel de Administración</h2>
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="p-2 flex items-center justify-center"
+          >
+            {collapsed ? (
+              <ChevronRight className="h-5 w-5" />
+            ) : (
+              <ChevronLeft className="h-5 w-5" />
+            )}
+          </button>
+        </div>
 
-      {/* Lista de enlaces */}
-      <List sx={{ mt: 1 }}>
-        {menuItems.map(item => {
-          const active = isRouteActive(item.link);
-          return (
-            <ListItem key={item.link} disablePadding sx={{ display: 'block' }}>
-              <ListItemButton
-                component={Link}
-                href={item.link}
-                sx={{
-                  minHeight: 48,
-                  justifyContent: collapsed ? 'center' : 'flex-start',
-                  px: collapsed ? 0 : 2.5,
-                  color: active ? theme.palette.primary.main : 'inherit',
-                  backgroundColor: active
-                    ? 'rgba(25, 118, 210, 0.08)'
-                    : 'transparent',
-                  '&:hover': {
-                    backgroundColor: active
-                      ? 'rgba(25, 118, 210, 0.15)'
-                      : 'rgba(0, 0, 0, 0.04)',
-                  },
-                }}
-              >
-                <ListItemIcon
-                  sx={{
-                    minWidth: 0,
-                    mr: collapsed ? 0 : 3,
-                    justifyContent: 'center',
-                    color: active ? theme.palette.primary.main : 'inherit',
-                  }}
-                >
-                  {item.icon}
-                </ListItemIcon>
-                {!collapsed && <ListItemText primary={item.text} />}
-              </ListItemButton>
-            </ListItem>
-          );
-        })}
-      </List>
-    </Drawer>
+        <div className="mt-4 space-y-4 px-4">
+          {menuItems.map((item, index) => (
+            <div
+              key={item.text}
+              className={`${
+                pathname === item.link || pathname.startsWith(item.link + "/")
+                  ? "bg-green-100 text-green-600"
+                  : "text-gray-700"
+              } hover:bg-green-100 hover:text-green-600 p-2 rounded-md transition-colors duration-300 flex items-center`}
+            >
+              <div className="mr-2">{item.icon}</div>
+              {!collapsed && <span>{item.text}</span>}
+            </div>
+          ))}
+        </div>
+      </div>
+    )
   );
 }

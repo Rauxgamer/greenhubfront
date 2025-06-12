@@ -8,8 +8,12 @@ import { Search, ShoppingBag, Play, Pause, Menu, Heart, User, ChevronRight } fro
 import VideoContentCard from "@/components/public/video-content-card"
 import Footer from "@/components/footer-component"
 import Link from "next/link"
+import AdminSidebar from "@/components/admin/adminSidebar"
+
 
 import { useIntersectionObserver } from "@/hooks/use-intersection-observer" // Import the hook
+import { useAuth } from "@/context/AuthContext";  // Asegúrate de importar el hook useAuth
+import { AuthProvider } from "@/context/AuthContext"
 
 type ProductCardInfo = {
   imageSrc: string
@@ -43,7 +47,7 @@ const productCardsData: ProductCardInfo[] = [
     linkText: "Ver colección",
     href: "#",
   },
-  { imageSrc: "/images/product/zz-plant.jpeg", title: "Resistentes Plantas ZZ", linkText: "Explorar", href: "#" },
+  { imageSrc: "/images/product/zz-plant.jpeg", title: "Resistentes Plantas", linkText: "Explorar", href: "#" },
   {
     imageSrc: "/images/product/fittonia-decorative-pot.jpeg",
     title: "Fittonias Decorativas",
@@ -128,6 +132,11 @@ export default function MetaLandingPage() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [headerScrolled, setHeaderScrolled] = useState(false)
 
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const contentClass = collapsed ? "ml-20" : "ml-64";
+
+  const { isAuthenticated, isAdmin } = useAuth(); // Accede al contexto de autenticación
   const heroVideoUrl =
     "https://d.media.kavehome.com/video/upload/w_auto,ar_1.7777777777777777,dpr_2,f_auto/v1748876467/home-page-videos/a-sumers-table-slide-desktop.es_ES.mp4"
 
@@ -147,12 +156,28 @@ export default function MetaLandingPage() {
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
 
+  useEffect(() => {
+  if(isAuthenticated && isAdmin){
+    setIsSidebarOpen(true)
+  }
+}, [isAuthenticated, isAdmin]);
   return (
-    <div className="min-h-screen bg-white text-gray-800 font-sans">
-      <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300`}>
-        <div
-          className={`bg-green-600 text-white text-xs text-center py-2 transition-opacity duration-300 ${headerScrolled ? "opacity-100" : "opacity-100"}`}
+    <div className="min-h-screen bg-white text-gray-800 font-sans flex">
+      {/* Sidebar */}
+        <AdminSidebar
+          open={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
+          variant="permanent"
+          collapsed={collapsed}
+          setCollapsed={setCollapsed}
+        />
+        
+      <div className={`flex-1 ${contentClass} transition-all duration-300`}>
+        <header
+          className={`fixed top-0 ${collapsed ? "left-20" : "left-64"} right-0 z-50 transition-all duration-300`}
         >
+
+         <div className={`bg-green-600 text-white text-xs text-center py-2 transition-opacity duration-300 ${headerScrolled ? "opacity-100" : "opacity-100"}`}>
           <a href="#" className="hover:underline">
             Oferta Especial: ¡20% en Orquídeas esta Semana! <ChevronRight className="inline h-3 w-3" />
           </a>
@@ -196,15 +221,35 @@ export default function MetaLandingPage() {
               ))}
               
               {[User, Heart, ShoppingBag].map((Icon, idx) => (
-                <button key={idx} aria-label="User action" className={`hover:text-green-600 transition-colors`}>
-                  <Icon className="h-5 w-5" />
+                <button
+                  key={idx}
+                  aria-label="User action"
+                  className={`hover:text-green-600 transition-colors`}
+                >
+                  {idx === 0 ? (
+                    <Link href="/login">
+                      <Icon className="h-5 w-5" />
+                    </Link>
+                  ) : (
+                    <Icon className="h-5 w-5" />
+                  )}
                 </button>
               ))}
             </div>
             <div className="md:hidden flex items-center space-x-3">
               {[Search, User, ShoppingBag].map((Icon, idx) => (
-                <button key={idx} aria-label="User action" className={`hover:text-green-600 transition-colors`}>
-                  <Icon className="h-5 w-5" />
+                <button
+                  key={idx}
+                  aria-label="User action"
+                  className={`hover:text-green-600 transition-colors`}
+                >
+                  {idx === 1 ? (
+                    <Link href="/login">
+                      <Icon className="h-5 w-5" />
+                    </Link>
+                  ) : (
+                    <Icon className="h-5 w-5" />
+                  )}
                 </button>
               ))}
             </div>
@@ -285,13 +330,6 @@ export default function MetaLandingPage() {
             </Button>
           </AnimatedSection>
         </div>
-        <button
-          onClick={togglePlayPause}
-          className="absolute z-20 bottom-8 right-8 bg-white/70 text-gray-700 p-3 rounded-full hover:bg-white shadow-md hover:shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-green-500"
-          aria-label={isPlaying ? "Pause video" : "Play video"}
-        >
-          {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
-        </button>
       </main>
 
       <section className="py-16 sm:py-24 bg-gray-50 overflow-hidden">
@@ -396,5 +434,6 @@ export default function MetaLandingPage() {
       </section>
       <Footer />
     </div>
+  </div>
   )
 }
