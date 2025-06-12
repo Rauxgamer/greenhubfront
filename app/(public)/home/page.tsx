@@ -134,7 +134,14 @@ export default function MetaLandingPage() {
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const contentClass = collapsed ? "ml-20" : "ml-64";
+
+   const contentClass = !isSidebarOpen
+    ? "w-full" // Full width if sidebar is not present
+    : collapsed
+    ? "ml-20" // Sidebar collapsed (small width)
+    : "ml-64";
+
+     const headerClass = isSidebarOpen ? (collapsed ? "left-20" : "left-64") : "left-0";
 
   const { isAuthenticated, isAdmin } = useAuth(); // Accede al contexto de autenticación
   const heroVideoUrl =
@@ -173,10 +180,7 @@ export default function MetaLandingPage() {
         />
         
       <div className={`flex-1 ${contentClass} transition-all duration-300`}>
-        <header
-          className={`fixed top-0 ${collapsed ? "left-20" : "left-64"} right-0 z-50 transition-all duration-300`}
-        >
-
+         <header className={`fixed top-0 ${headerClass} right-0 z-50 transition-all duration-300`}>
          <div className={`bg-green-600 text-white text-xs text-center py-2 transition-opacity duration-300 ${headerScrolled ? "opacity-100" : "opacity-100"}`}>
           <a href="#" className="hover:underline">
             Oferta Especial: ¡20% en Orquídeas esta Semana! <ChevronRight className="inline h-3 w-3" />
