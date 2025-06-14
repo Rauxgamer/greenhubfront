@@ -1,20 +1,42 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, query, orderBy, where } from "firebase/firestore";
+import React, { useState, useEffect } from "react";
+import {
+  collection,
+  getDocs,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  orderBy,
+  where,
+  doc,
+  Timestamp
+} from "firebase/firestore";
 import { db } from "@/services/firebaseConfig";
 import AdminSidebar from "@/components/admin/adminSidebar";
 import Header from "@/components/header-component";
-import { ChevronDown, Plus, Pencil, Trash } from "lucide-react";
+import { Plus, Pencil, Trash } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface User {
   id: string;
   bio: string;
-  createdAt: string;
+  createdAt: string;    // ISO string
   displayName: string;
   email: string;
   emailVerified: boolean;
-  lastLogin: string;
+  lastLogin: string;    // ISO string
   photoURL: string;
   role: string;
   username: string;
@@ -26,52 +48,121 @@ export default function UsersAdminPage() {
   const [collapsed, setCollapsed] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-  // Filtros
+  // filtros
   const [sortField, setSortField] = useState<keyof User>("displayName");
   const [filterRole, setFilterRole] = useState<string>("");
+
+  // CRUD dialogs
+  const [isFormOpen, setFormOpen] = useState(false);
+  const [isDeleteOpen, setDeleteOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+
+  // estado del formulario
+  const emptyForm = {
+    displayName: "",
+    email: "",
+    emailVerified: false,
+    role: "user",
+    username: "",
+    bio: ""
+  };
+  const [formValues, setFormValues] = useState(emptyForm);
+
+  // Helper para formatear fecha
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return isNaN(d.getTime()) ? dateStr : d.toLocaleString();
+  };
+
+  // Fetch usuarios y convertir Timestamp ➔ ISO
+  async function fetchUsers() {
+    setLoading(true);
+    let q = query(collection(db, "users"), orderBy(sortField));
+    if (filterRole) {
+      q = query(q, where("role", "==", filterRole));
+    }
+
+    const snap = await getDocs(q);
+    const data = snap.docs.map(d => {
+      const raw = d.data() as any;
+      return {
+        id: d.id,
+        bio: raw.bio,
+        displayName: raw.displayName,
+        email: raw.email,
+        emailVerified: raw.emailVerified,
+        role: raw.role,
+        username: raw.username,
+        photoURL: raw.photoURL || "./log.png",
+        createdAt:
+          raw.createdAt instanceof Timestamp
+            ? raw.createdAt.toDate().toISOString()
+            : raw.createdAt,
+        lastLogin:
+          raw.lastLogin instanceof Timestamp
+            ? raw.lastLogin.toDate().toISOString()
+            : raw.lastLogin,
+      } as User;
+    });
+
+    setUsers(data);
+    setLoading(false);
+  }
 
   useEffect(() => {
     fetchUsers();
   }, [sortField, filterRole]);
 
-  async function fetchUsers() {
-    setLoading(true);
-    let q = query(
-      collection(db, "users"),
-      orderBy(sortField)
-    );
-    if (filterRole) {
-      q = query(q, where("role", "==", filterRole));
+  // Abrir diálogo Añadir
+  function openAdd() {
+    setEditingUser(null);
+    setFormValues(emptyForm);
+    setFormOpen(true);
+  }
+
+  // Abrir diálogo Editar
+  function openEdit(user: User) {
+    setEditingUser(user);
+    setFormValues({
+      displayName: user.displayName,
+      email: user.email,
+      emailVerified: user.emailVerified,
+      role: user.role,
+      username: user.username,
+      bio: user.bio
+    });
+    setFormOpen(true);
+  }
+
+  // Guardar (añadir o editar)
+  async function handleSave() {
+    if (editingUser) {
+      const ref = doc(db, "users", editingUser.id);
+      await updateDoc(ref, { ...formValues });
+    } else {
+      await addDoc(collection(db, "users"), {
+        ...formValues,
+        createdAt: new Date().toISOString(),
+        lastLogin: new Date().toISOString(),
+        photoURL: ""
+      });
     }
-    const snapshot = await getDocs(q);
-    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as User[];
-    setUsers(data);
-    setLoading(false);
-  }
-
-  async function handleAdd() {
-    const newUser: Omit<User, 'id'> = {
-      bio: 'Sin descripción',
-      createdAt: new Date().toISOString(),
-      displayName: 'Nuevo Usuario',
-      email: '',
-      emailVerified: false,
-      lastLogin: new Date().toISOString(),
-      photoURL: '',
-      role: 'user',
-      username: ''
-    };
-    await addDoc(collection(db, "users"), newUser);
+    setFormOpen(false);
     fetchUsers();
   }
 
-  async function handleUpdate(id: string, field: keyof User, value: any) {
-    const ref = await updateDoc(doc(db, "users", id), { [field]: value });
-    fetchUsers();
+  // Abrir confirmación borrado
+  function openDelete(id: string) {
+    setDeletingUserId(id);
+    setDeleteOpen(true);
   }
 
-  async function handleDelete(id: string) {
-    await deleteDoc(doc(db, "users", id));
+  // Confirmar y ejecutar borrado
+  async function handleConfirmDelete() {
+    if (!deletingUserId) return;
+    await deleteDoc(doc(db, "users", deletingUserId));
+    setDeleteOpen(false);
     fetchUsers();
   }
 
@@ -84,14 +175,15 @@ export default function UsersAdminPage() {
         collapsed={collapsed}
         setCollapsed={setCollapsed}
       />
-      <div className={`flex-1 transition-all duration-300 ${collapsed ? 'ml-20' : 'ml-64'}`}>
+      <div className={`flex-1 transition-all duration-300 ${collapsed ? "ml-20" : "ml-64"}`}>
         <Header
           collapsed={collapsed}
           isSidebarOpen={isSidebarOpen}
           isMobileMenuOpen={false}
           setIsMobileMenuOpen={() => {}}
         />
-        <div className="p-6 pt-24">
+        <div className="p-6 pt-28">
+          {/* filtros y botón añadir */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex space-x-4">
               <select
@@ -113,13 +205,12 @@ export default function UsersAdminPage() {
                 <option value="user">User</option>
               </select>
             </div>
-            <button
-              onClick={handleAdd}
-              className="bg-green-600 text-white px-4 py-2 rounded flex items-center hover:bg-green-700"
-            >
+            <Button onClick={openAdd} className="flex items-center bg-green-600">
               <Plus className="mr-2" /> Añadir usuario
-            </button>
+            </Button>
           </div>
+
+          {/* tabla */}
           {loading ? (
             <p>Cargando...</p>
           ) : (
@@ -127,24 +218,42 @@ export default function UsersAdminPage() {
               <table className="w-full table-auto border-collapse">
                 <thead>
                   <tr className="bg-gray-100">
-                    {['Foto','Nombre','Email','Verificado','Rol','Creado','Último login','Acciones'].map(header => (
-                      <th key={header} className="p-2 border-b text-left">{header}</th>
-                    ))}
+                    <th className="p-2 border-b text-left">Foto</th>
+                    <th className="p-2 border-b text-left">Nombre</th>
+                    <th className="p-2 border-b text-left">Email</th>
+                    <th className="p-2 border-b text-left">Verificado</th>
+                    <th className="p-2 border-b text-left">Rol</th>
+                    <th className="p-2 border-b text-left">Creado</th>
+                    <th className="p-2 border-b text-left">Último login</th>
+                    <th className="p-2 border-b text-left">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map(user => (
-                    <tr key={user.id} className="hover:bg-gray-50">
-                      <td className="p-2"><img src={user.photoURL} alt="" className="h-8 w-8 rounded-full"/></td>
-                      <td className="p-2">{user.displayName}</td>
-                      <td className="p-2">{user.email}</td>
-                      <td className="p-2">{user.emailVerified ? 'Sí' : 'No'}</td>
-                      <td className="p-2">{user.role}</td>
-                      <td className="p-2">{new Date(user.createdAt).toLocaleString()}</td>
-                      <td className="p-2">{new Date(user.lastLogin).toLocaleString()}</td>
+                  {users.map(u => (
+                    <tr key={u.id} className="odd:bg-green-50 hover:bg-gray-100">
+                      <td className="p-2">
+                        <img
+                          src={u.photoURL}
+                          onError={e => {
+                            e.currentTarget.src = "/log.png";
+                          }}
+                          alt={u.displayName}
+                          className="h-8 w-8 rounded-full"
+                        />
+                      </td>
+                      <td className="p-2">{u.displayName}</td>
+                      <td className="p-2">{u.email}</td>
+                      <td className="p-2">{u.emailVerified ? "Sí" : "No"}</td>
+                      <td className="p-2">{u.role}</td>
+                      <td className="p-2">{formatDate(u.createdAt)}</td>
+                      <td className="p-2">{formatDate(u.lastLogin)}</td>
                       <td className="p-2 flex space-x-2">
-                        <button className="p-1 hover:text-blue-600"><Pencil /></button>
-                        <button onClick={() => handleDelete(user.id)} className="p-1 hover:text-red-600"><Trash /></button>
+                        <button onClick={() => openEdit(u)} className="p-1 hover:text-blue-600">
+                          <Pencil />
+                        </button>
+                        <button onClick={() => openDelete(u.id)} className="p-1 hover:text-red-600">
+                          <Trash />
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -152,6 +261,107 @@ export default function UsersAdminPage() {
               </table>
             </div>
           )}
+
+          {/* Dialog Añadir / Editar */}
+          <Dialog
+            open={isFormOpen}
+            onOpenChange={open => {
+              setFormOpen(open);
+              if (!open) setFormValues(emptyForm);
+            }}
+          >
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{editingUser ? "Editar usuario" : "Añadir usuario"}</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div>
+                  <Label htmlFor="displayName">Nombre</Label>
+                  <Input
+                    id="displayName"
+                    value={formValues.displayName}
+                    onChange={e => setFormValues(v => ({ ...v, displayName: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formValues.email}
+                    onChange={e => setFormValues(v => ({ ...v, email: e.target.value }))}
+                  />
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Input
+                    id="emailVerified"
+                    type="checkbox"
+                    checked={formValues.emailVerified}
+                    onChange={e => setFormValues(v => ({ ...v, emailVerified: e.currentTarget.checked }))}
+                  />
+                  <Label htmlFor="emailVerified">Verificado</Label>
+                </div>
+                <div>
+                  <Label htmlFor="role">Rol</Label>
+                  <select
+                    id="role"
+                    className="border p-2 rounded w-full"
+                    value={formValues.role}
+                    onChange={e => setFormValues(v => ({ ...v, role: e.target.value }))}
+                  >
+                    <option value="user">User</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="username">Username</Label>
+                  <Input
+                    id="username"
+                    value={formValues.username}
+                    onChange={e => setFormValues(v => ({ ...v, username: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="bio">Bio</Label>
+                  <Input
+                    id="bio"
+                    value={formValues.bio}
+                    onChange={e => setFormValues(v => ({ ...v, bio: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <DialogFooter className="space-x-2">
+                <DialogClose asChild>
+                  <Button variant="outline">Cancelar</Button>
+                </DialogClose>
+                <Button onClick={handleSave}>Guardar</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Dialog Confirmar Borrado */}
+          <Dialog
+            open={isDeleteOpen}
+            onOpenChange={open => {
+              setDeleteOpen(open);
+              if (!open) setDeletingUserId(null);
+            }}
+          >
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>¿Eliminar usuario?</DialogTitle>
+              </DialogHeader>
+              <p>Esta acción no se puede deshacer. ¿Seguro que quieres borrar este usuario?</p>
+              <DialogFooter className="space-x-2 mt-4">
+                <DialogClose asChild>
+                  <Button variant="outline">Cancelar</Button>
+                </DialogClose>
+                <Button variant="destructive" onClick={handleConfirmDelete}>
+                  Borrar
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
     </div>
