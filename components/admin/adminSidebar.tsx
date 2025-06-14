@@ -72,7 +72,7 @@ return (
           </button>
         </div>
 
-        <div className="mt-4 space-y-4 px-4">
+        <div className="mt-4 space-y-6 px-4">
           {menuItems.map((item, index) => (
             <Link href={item.link} key={item.text}>
             <div
@@ -81,7 +81,7 @@ return (
                 pathname === item.link 
                   ? "bg-green-100 text-green-600"
                   : "text-gray-700"
-              } hover:bg-green-100 hover:text-green-600 p-2 rounded-md transition-colors duration-300 flex items-center`}
+              } hover:bg-green-100 hover:text-green-600 p-2 rounded-md transition-colors duration-300 flex items-center my-4`}
             >
               <div className="mr-2">{item.icon}</div>
               {!collapsed && <span>{item.text}</span>}
