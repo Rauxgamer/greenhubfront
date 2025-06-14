@@ -52,6 +52,11 @@ export default function UsersAdminPage() {
   const [sortField, setSortField] = useState<keyof User>("displayName");
   const [filterRole, setFilterRole] = useState<string>("");
 
+  // paginación
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  const totalPages = Math.ceil(users.length / itemsPerPage);
+
   // CRUD dialogs
   const [isFormOpen, setFormOpen] = useState(false);
   const [isDeleteOpen, setDeleteOpen] = useState(false);
@@ -114,6 +119,11 @@ export default function UsersAdminPage() {
     fetchUsers();
   }, [sortField, filterRole]);
 
+  // resetear página cuando cambian los usuarios
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [users]);
+
   // Abrir diálogo Añadir
   function openAdd() {
     setEditingUser(null);
@@ -166,6 +176,12 @@ export default function UsersAdminPage() {
     fetchUsers();
   }
 
+  // usuarios de la página actual
+  const paginatedUsers = users.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   return (
     <div className="flex min-h-screen">
       <AdminSidebar
@@ -205,7 +221,7 @@ export default function UsersAdminPage() {
                 <option value="user">User</option>
               </select>
             </div>
-            <Button onClick={openAdd} className="flex items-center bg-green-600">
+            <Button onClick={openAdd} className="flex items-center bg-green-600 text-white">
               <Plus className="mr-2" /> Añadir usuario
             </Button>
           </div>
@@ -229,14 +245,12 @@ export default function UsersAdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map(u => (
+                  {paginatedUsers.map(u => (
                     <tr key={u.id} className="odd:bg-green-50 hover:bg-gray-100">
                       <td className="p-2">
                         <img
                           src={u.photoURL}
-                          onError={e => {
-                            e.currentTarget.src = "/log.png";
-                          }}
+                          onError={e => { e.currentTarget.src = "/log.png"; }}
                           alt={u.displayName}
                           className="h-8 w-8 rounded-full"
                         />
@@ -259,6 +273,42 @@ export default function UsersAdminPage() {
                   ))}
                 </tbody>
               </table>
+
+              {/* paginación */}
+              <div className="flex justify-between items-center mt-4">
+                <div>
+                  Página {currentPage} de {totalPages}
+                </div>
+                <div className="flex space-x-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(cp => Math.max(cp - 1, 1))}
+                  >
+                    Anterior
+                  </Button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`px-3 py-1 rounded ${
+                        page === currentPage ? "bg-green-600 text-white" : "bg-gray-200"
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(cp => Math.min(cp + 1, totalPages))}
+                  >
+                    Siguiente
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
 
