@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ChevronLeft } from "lucide-react";
+import { loadStripe } from "@stripe/stripe-js";
 
 export interface CartItem {
   productId: string;
@@ -55,18 +56,38 @@ export default function CheckoutPage() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Handler de checkout
+  const onCheckout = useCallback(async () => {
+    // Llamada al endpoint Next.js
+    const res = await fetch("/api/create-checkout-session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        items: cartItems,
+        successUrl: `${window.location.origin}/gracias`,
+        cancelUrl: `${window.location.origin}/checkout`,
+      }),
+    });
+    const { sessionId, error } = await res.json();
+    if (error) {
+      console.error("Stripe error:", error);
+      return;
+    }
+    // Redirige a Stripe Checkout
+    const stripeJs = await loadStripe(
+      process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
+    );
+    await stripeJs!.redirectToCheckout({ sessionId });
+  }, [cartItems]);
+
   useEffect(() => {
-    // Si no está autenticado, redirigir al login
+    // Si no está autenticado, va al login
     if (isAuthenticated === false) {
       router.replace("/login");
       return;
     }
-    // Si aún no tenemos el objeto `user`, esperamos
-    if (!user) {
-      return;
-    }
+    if (!user) return;
 
-    // Cargamos datos
     async function loadAll() {
       setLoading(true);
       const userRef = doc(db, "users", user.uid);
@@ -79,19 +100,16 @@ export default function CheckoutPage() {
       })) as Address[];
       setAddresses(addrs);
       const principal = addrs.find((a) => a.principal);
-      if (principal) {
-        setSelectedAddressId(principal.id);
-      }
+      if (principal) setSelectedAddressId(principal.id);
 
-      // Cargar carrito desde un único doc
-      const carritoDocRef = doc(userRef, "carrito", "carrito");
-      const cartDoc = await getDoc(carritoDocRef);
+      // Cargar carrito (único doc "carrito")
+      const cartDocRef = doc(userRef, "carrito", "carrito");
+      const cartDoc = await getDoc(cartDocRef);
       if (cartDoc.exists()) {
         const data = cartDoc.data() as any;
         const productosArr: any[] = Array.isArray(data.productos)
           ? data.productos
           : [];
-        // Por cada entrada, traemos detalles del producto
         const detalles = await Promise.all(
           productosArr.map(async (entry) => {
             const prodSnap = await getDoc(entry.productoId);
@@ -128,18 +146,14 @@ export default function CheckoutPage() {
       codigoPostal: Number(newAddr.codigoPostal),
       principal: true,
     });
-
     // Desmarcar anteriores
     await Promise.all(
       addresses.map((a) =>
         updateDoc(doc(userRef, "direcciones", a.id), { principal: false })
       )
     );
-
-    // Reset form
     setNewAddr({ calle: "", ciudad: "", codigoPostal: "", principal: true });
     setShowNewForm(false);
-
     // Refrescar direcciones
     const snap = await getDocs(col);
     const refreshed = snap.docs.map((d) => ({
@@ -154,8 +168,6 @@ export default function CheckoutPage() {
   const handleSelectAddress = async (id: string) => {
     if (!user) return;
     const userRef = doc(db, "users", user.uid);
-
-    // Actualizar principal
     await Promise.all(
       addresses.map((a) =>
         updateDoc(doc(userRef, "direcciones", a.id), {
@@ -163,18 +175,15 @@ export default function CheckoutPage() {
         })
       )
     );
-
-    setAddresses(
-      addresses.map((a) => ({ ...a, principal: a.id === id }))
-    );
+    setAddresses(addresses.map((a) => ({ ...a, principal: a.id === id })));
     setSelectedAddressId(id);
   };
 
-  // Total carrito
+  // Total del carrito
   const cartTotal = cartItems.reduce((sum, i) => sum + i.total, 0);
 
   if (loading) {
-    return <p className="p-8 text-center">Cargando datos...</p>;
+    return <p className="p-8 text-center">Cargando datos…</p>;
   }
 
   return (
@@ -218,10 +227,7 @@ export default function CheckoutPage() {
             </label>
           ))}
         </div>
-        <Button
-          variant="outline"
-          onClick={() => setShowNewForm((s) => !s)}
-        >
+        <Button variant="outline" onClick={() => setShowNewForm((s) => !s)}>
           {showNewForm ? "Cancelar" : "Añadir nueva dirección"}
         </Button>
         {showNewForm && (
@@ -260,9 +266,7 @@ export default function CheckoutPage() {
                 }
               />
             </div>
-            <Button onClick={handleAddAddress}>
-              Guardar dirección
-            </Button>
+            <Button onClick={handleAddAddress}>Guardar dirección</Button>
           </div>
         )}
       </section>
@@ -301,7 +305,7 @@ export default function CheckoutPage() {
         ))}
       </section>
 
-      {/* Total y botón */}
+      {/* Total y botón de pago */}
       <section className="pt-4 border-t border-gray-200 space-y-4">
         <div className="flex justify-between text-lg font-semibold">
           <span>Total</span>
@@ -310,7 +314,7 @@ export default function CheckoutPage() {
         <Button
           size="lg"
           className="w-full bg-green-600 hover:bg-green-700"
-          onClick={() => alert("Implementa aquí la pasarela de pago")}
+          onClick={onCheckout}
         >
           Realizar compra
         </Button>
