@@ -1,311 +1,429 @@
-"use client"
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+"use client";
+
+import React, { useState, useEffect } from "react";
 import {
-  Heart,
+  doc,
+  getDoc,
+  collection,
+  getDocs,
+  setDoc,
+  Timestamp,
+} from "firebase/firestore";
+import { db } from "@/services/firebaseConfig";
+import AdminSidebar from "@/components/admin/adminSidebar";
+import Header, { CartItem } from "@/components/header-component";
+import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import Image from "next/image";
+import Footer from "@/components/footer-component";
+import { useAuth } from "@/context/AuthContext";
+import { Button } from "@/components/ui/button";
+import {
   ShoppingCart,
+  Plus,
+  Minus,
+  Heart,
   ChevronRight,
   Truck,
   Package,
-  Scan,
-  Plus,
-  Minus,
-  Search,
-  Menu,
-  User,
-  ShoppingBagIcon,
-} from "lucide-react"
-import Footer from "@/components/footer-component"
-import Link from "next/link"
-import Image from "next/image"
-import { useRouter, useSearchParams } from "next/navigation";
-import { db } from "@/services/firebaseConfig"; // Firebase configuration
-import { collection, doc, getDoc, getDocs, setDoc } from "firebase/firestore";
-import { getAuth } from "firebase/auth"
-import { useAuth } from "@/context/AuthContext"
+  X,
+} from "lucide-react";
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "@/components/ui/accordion";
 
-export default function ProductDetailPage({ params }: { params: { slug: string } }) {
+type ProductData = {
+  nombre: string;
+  descripcion: string;
+  imagen: string[];
+  precio: number;
+  originalPrice: number;
+  disponible: string;
+  categoria_principal: string;
+};
+
+export default function ProductDetailPage() {
+  const { isAuthenticated, isAdmin, user } = useAuth();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const categoriaParam = searchParams.get("categoria") || "";
+  const productoParam = searchParams.get("producto") || "";
 
-  const categoria = searchParams.get("categoria");
-  const producto = searchParams.get("producto");
+  // PRODUCTO
+  const [productData, setProductData] = useState<ProductData>({
+    nombre: "",
+    descripcion: "",
+    imagen: ["", ""],
+    precio: 0,
+    originalPrice: 0,
+    disponible: "",
+    categoria_principal: "",
+  });
 
-  const [productData, setProductData] = useState<any>(null);
-  const [quantity, setQuantity] = useState(1)
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const [headerScrolled, setHeaderScrolled] = useState(false)
+  // CARRITO
+  const [cartOpen, setCartOpen] = useState(false);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
 
+  // LAYOUT
+  const [quantity, setQuantity] = useState(1);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
-  const [cartItems, setCartItems] = useState<any[]>([]);
-  const [isCartPanelOpen, setIsCartPanelOpen] = useState(false);
-
-
-  const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen)
+  // Abrir sidebar para admin
   useEffect(() => {
-    const fetchProduct = async () => {
-      if (categoria && producto) {
-        console.log("Fetching product", categoria, producto); // Verifica si estos valores son correctos
-        const productRef = doc(db, "productos", categoria, "tipos", producto);
-        const docSnap = await getDoc(productRef);
+    if (isAuthenticated && isAdmin) setIsSidebarOpen(true);
+  }, [isAuthenticated, isAdmin]);
 
-        if (docSnap.exists()) {
-          setProductData(docSnap.data());
-        } else {
-          console.log("No such document!");
-        }
-        
+  // Fetch producto
+  useEffect(() => {
+    async function fetchProduct() {
+      if (!categoriaParam || !productoParam) return;
+      const ref = doc(db, "productos", categoriaParam, "tipos", productoParam);
+      const snap = await getDoc(ref);
+      if (snap.exists()) {
+        const d = snap.data() as any;
+        setProductData({
+          nombre: d.nombre || "",
+          descripcion: d.descripcion || "",
+          imagen: Array.isArray(d.imagen) ? d.imagen : ["", ""],
+          precio: typeof d.precio === "number" ? d.precio : 0,
+          originalPrice:
+            typeof d.originalPrice === "number" ? d.originalPrice : 0,
+          disponible: d.disponible || "",
+          categoria_principal: d.categoria_principal || "",
+        });
       }
-    };
-
-    fetchProduct();
-  }, [categoria, producto]);
-
-  useEffect(() => {
-    if (productData) {
-      console.log("Product data fetched", productData); // Aquí ya verás el valor actualizado
     }
-  }, [productData]);
+    fetchProduct();
+  }, [categoriaParam, productoParam]);
 
+  // Cargar carrito
   useEffect(() => {
-    const fetchCart = async () => {
-      const auth = getAuth();
-      const user = auth.currentUser;
-
-      if (user) {
+    async function loadCart() {
+      if (isAuthenticated && user) {
         const userRef = doc(db, "users", user.uid);
-        const cartRef = collection(userRef, "carrito");
-        const cartSnap = await getDocs(cartRef);
-        const cartItemsList = cartSnap.docs.map((doc) => doc.data());
-        setCartItems(cartItemsList);
+        const snap = await getDocs(collection(userRef, "carrito"));
+        setCartItems(
+          snap.docs.map(d => {
+            const data = d.data() as any;
+            return {
+              productId: data.productoId.path,
+              nombre: data.nombre,
+              imagen: data.imagen,
+              precio: data.precio,
+              cantidad: data.cantidad,
+              total: data.total,
+            };
+          })
+        );
+      } else {
+        const ls = localStorage.getItem("cart");
+        setCartItems(ls ? JSON.parse(ls) : []);
       }
-    };
+    }
+    loadCart();
+  }, [isAuthenticated, user]);
 
-    fetchCart();
-  }, []);
-
-
-  useEffect(() => {
-    const handleScroll = () => setHeaderScrolled(window.scrollY > 20)
-    window.addEventListener("scroll", handleScroll)
-    return () => window.removeEventListener("scroll", handleScroll)
-  }, [])
-
-  // const handleAddToCart = async () => {
-  //   const auth = getAuth();
-  //   const user = auth.currentUser;
-    
-  //   if (!user) {
-  //     // If the user is not logged in, redirect to login
-  //     router.push("/login");
-  //     return;
-  //   }
-
-  //   // If logged in, add product to the cart
-  //   const userRef = doc(db, "users", user.uid);
-  //   const cartRef = doc(userRef, "carrito", producto); // Unique document for each product in the cart
-
-  //   try {
-  //     await setDoc(cartRef, {
-  //       cantidad: quantity,
-  //       productoId: doc(db, "productos", categoria, "tipos", producto),
-  //       updatedAt: new Date(),
-  //       nombre: productData.nombre,
-  //       precio: productData.precio,
-  //       imagen: productData.imagen[0], // You can add more details here as needed
-  //     });
-
-  //     alert("Producto añadido al carrito");
-  //   } catch (error) {
-  //     console.error("Error al añadir al carrito: ", error);
-  //   }
-  // }
-
-  // if (!productData) {
-  //   // ... (product not found rendering - keeping it concise for this update)
-  //   return (
-  //     <div className="min-h-screen flex flex-col">
-  //       <main className="flex-grow flex items-center justify-center text-center px-4">
-  //         <div>
-  //           <h1 className="text-2xl font-semibold mb-4">Producto no encontrado</h1>
-  //           <Link href="/products">
-  //             <Button>Volver a productos</Button>
-  //           </Link>
-  //         </div>
-  //       </main>
-  //       <Footer />
-  //     </div>
-  //   )
-  // }
-
-  const handleQuantityChange = (amount: number) => {
-    setQuantity((prev) => Math.max(1, prev + amount))
+  // Persistir carrito
+  async function saveCart(newItems: CartItem[]) {
+    setCartItems(newItems);
+    if (isAuthenticated && user) {
+      const userRef = doc(db, "users", user.uid);
+      for (const item of newItems) {
+        const id = item.productId.replace(/\//g, "_");
+        await setDoc(doc(userRef, "carrito", id), {
+          productoId: doc(db, ...item.productId.split("/")),
+          nombre: item.nombre,
+          imagen: item.imagen,
+          precio: item.precio,
+          cantidad: item.cantidad,
+          total: item.total,
+          updatedAt: Timestamp.now(),
+        });
+      }
+    } else {
+      localStorage.setItem("cart", JSON.stringify(newItems));
+    }
   }
 
-    const { isAuthenticated, isAdmin } = useAuth(); // Accede al contexto de autenticación
-    
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-      const [collapsed, setCollapsed] = useState(false);
-    
-       const contentClass = !isSidebarOpen
-        ? "w-full" // Full width if sidebar is not present
-        : collapsed
-        ? "ml-20" // Sidebar collapsed (small width)
-        : "ml-64";
-  
-         useEffect(() => {
-          if(isAuthenticated && isAdmin){
-            setIsSidebarOpen(true)
-          }
-        }, [isAuthenticated, isAdmin]);
-  
+  // Añadir al carrito
+ async function handleAddToCart() {
+  // 1) Si no estamos autenticados, redirigimos al login
+  if (!isAuthenticated || !user?.uid) {
+    router.push("/login");
+    return;
+  }
+
+  // 2) Referencia al documento único "carrito" en users/{uid}/carrito/carrito
+  const carritoRef = doc(db, "users", user.uid, "carrito", "carrito");
+
+  // 3) Referencia al documento real del producto
+  const productRef = doc(
+    db,
+    "productos",
+    categoriaParam,
+    "tipos",
+    productoParam
+  );
+
+  // 4) Leemos el estado actual del carrito
+  const snap = await getDoc(carritoRef);
+  // Inicializamos productos (array) y total previos
+  let productos: { productoId: any; cantidad: number }[] = [];
+  let prevTotal = 0;
+  if (snap.exists()) {
+    const data = snap.data();
+    productos = Array.isArray(data.productos) ? data.productos : [];
+    prevTotal = typeof data.total === "number" ? data.total : 0;
+  }
+
+  // 5) Buscamos si ya existía en el array
+  const idx = productos.findIndex(
+    (e) => (e.productoId as any).path === productRef.path
+  );
+
+  if (idx > -1) {
+    // ya existe → sumamos cantidad
+    productos[idx].cantidad += quantity;
+  } else {
+    // no existe → lo añadimos
+    productos.push({
+      productoId: productRef,
+      cantidad: quantity,
+    });
+  }
+
+  // 6) Calculamos el nuevo total (incremental)
+  const delta = quantity * productData.precio;
+  const newTotal = prevTotal + delta;
+
+  // 7) Escribimos todo de golpe (merge no necesario pues reemplazamos los campos)
+  await setDoc(
+    carritoRef,
+    {
+      productos,
+      total: newTotal,
+      updatedAt: Timestamp.now(),
+    },
+    { merge: true }
+  );
+
+  // 8) Abrimos el panel
+  setCartOpen(true);
+}
+
+
+  // Actualizar cantidad (o eliminar si llega a 0)
+  function updateQty(pid: string, delta: number) {
+    const updated = cartItems
+      .map(i =>
+        i.productId === pid
+          ? {
+              ...i,
+              cantidad: Math.max(0, i.cantidad + delta),
+              total: Math.max(0, i.cantidad + delta) * i.precio,
+            }
+          : i
+      )
+      .filter(i => i.cantidad > 0);
+    saveCart(updated);
+  }
+
+  // Eliminar item
+  function removeItem(pid: string) {
+    saveCart(cartItems.filter(i => i.productId !== pid));
+  }
+
+  const cartTotal = cartItems.reduce((sum, i) => sum + i.total, 0);
+
+  // Ajustar contenedor cuando el sidebar esté abierto
+  const contentClass = !isSidebarOpen
+    ? "w-full"
+    : collapsed
+    ? "ml-20"
+    : "ml-64";
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
-      {/* Header */}
+    <div className="min-h-screen bg-white font-sans flex">
+      <AdminSidebar
+        open={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+        variant="permanent"
+        collapsed={collapsed}
+        setCollapsed={setCollapsed}
+      />
 
-      <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-[calc(1.75rem+4rem+2rem)] sm:pt-[calc(1.75rem+4rem+3rem)]">
-        {/* Breadcrumbs */}
-        <nav className="text-xs sm:text-sm text-gray-500 mb-8 flex items-center space-x-1.5">
-          <Link href="/products" className="hover:text-green-600">
-            Productos
-          </Link>
-          <ChevronRight className="h-3.5 w-3.5" />
-          <Link href="/products" className="hover:text-green-600">
-            {productData.categoria}
-          </Link>
-          <ChevronRight className="h-3.5 w-3.5" />
-          <span className="font-medium text-gray-700">{productData.nombre}</span>
-        </nav>
+      <div className={`flex-1 ${contentClass} transition-all duration-300`}>
+        <Header
+          collapsed={collapsed}
+          isSidebarOpen={isSidebarOpen}
+          isMobileMenuOpen={false}
+          setIsMobileMenuOpen={() => {}}
+          cartOpen={cartOpen}
+          setCartOpen={setCartOpen}
+          cartItems={cartItems}
+          updateQty={updateQty}
+          removeItem={removeItem}
+          cartTotal={cartTotal}
+          onCheckout={() => router.push("/checkout")}
+        />
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 xl:gap-16">
-          {/* Left Column: Image Gallery (7/12 width on lg screens) */}
-          <div className="lg:col-span-7">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2 sm:col-span-1 relative aspect-[3/4] bg-gray-100 rounded-lg overflow-hidden shadow-sm">
-                <Image
-                  src={productData.imagen[0] || "/placeholder.svg"}
-                  alt={productData.imagen[0]}
-                  fill
-                  className="object-cover"
-                  priority
-                />
-              </div>
-              <div className="col-span-2 sm:col-span-1 relative aspect-[3/4] bg-gray-100 rounded-lg overflow-hidden shadow-sm">
-                <Image
-                  src={productData.imagen[1] || "/placeholder.svg"}
-                  alt={productData.imagen[1]}
-                  fill
-                  className="object-cover"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column: Product Info (5/12 width on lg screens) */}
-          <div className="lg:col-span-5 py-2">
-            <div className="flex justify-between items-start mb-3">
-              <h1 className="text-3xl sm:text-4xl font-bold text-gray-900">{productData.nombre}</h1>
-              <Button variant="ghost" size="icon" className="text-gray-500 hover:text-pink-500 -mt-1 -mr-2">
-                <Heart className="h-6 w-6" />
-              </Button>
-            </div>
-            <p className="text-gray-600 mb-4 text-base">{productData.descripcion}</p>
-
-            <p className="text-3xl font-semibold text-gray-800 mb-1">
-              {productData.precio} €
-            </p>
-            {productData.originalPrice && (
-              <p className="text-sm text-gray-400 line-through mb-4">
-                Precio original: {productData.precio} €
-              </p>
-            )}
-            <p className="text-xs text-gray-500 mb-6">
-              IVA incluido.{" "}
-              <Link href="#" className="underline hover:text-green-600">
-                Gastos de envío
-              </Link>{" "}
-              no incluidos.
-            </p>
-
-            <div className="border rounded-md p-3 mb-6 flex items-center justify-between text-sm hover:border-gray-400 transition">
-              <span>{productData.descripcion}</span>
-              <ChevronRight className="h-5 w-5 text-gray-400" />
-            </div>
-
-            <p className="text-sm text-gray-700 mb-4 flex items-center">
-              <Truck className="h-5 w-5 mr-2 text-green-600" />
-              Compra ahora y recíbelo <span className="font-semibold mx-1">entre el 17/06 y el 19/06</span>
-            </p>
-
-            <div className="flex items-center space-x-3 mb-6">
-              <p className="text-sm text-gray-700 font-medium">Cantidad:</p>
-              <div className="flex items-center border border-gray-300 rounded-md">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleQuantityChange(-1)}
-                  className="h-10 w-10 text-gray-600 hover:bg-gray-100 rounded-r-none"
-                >
-                  <Minus className="h-4 w-4" />
-                </Button>
-                <input
-                  type="text"
-                  readOnly
-                  value={quantity}
-                  className="w-12 h-10 text-center border-y-0 border-x-0 focus:outline-none focus:ring-0 font-medium"
-                />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleQuantityChange(1)}
-                  className="h-10 w-10 text-gray-600 hover:bg-gray-100 rounded-l-none"
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-
-            <Button
-              size="lg"
-              className="w-full bg-gray-900 hover:bg-gray-800 text-white py-3.5 text-base font-semibold mb-6 rounded-md"
+        {/* DETALLE DEL PRODUCTO */}
+        <main className="pt-[calc(1.75rem+4rem)] pb-8 px-4 sm:px-6 lg:px-8">
+          {/* Breadcrumbs */}
+          <nav className="text-xs sm:text-sm text-gray-500 mb-8 flex items-center space-x-1.5">
+            <Link href="/products" className="hover:text-green-600">
+              Productos
+            </Link>
+            <ChevronRight className="h-3.5 w-3.5" />
+            <Link
+              href={`/products?categoria=${categoriaParam}`}
+              className="hover:text-green-600"
             >
-              <ShoppingCart className="h-5 w-5 mr-2" />
-              Añadir al Carrito
-            </Button>
+              {productData.categoria_principal || categoriaParam}
+            </Link>
+            <ChevronRight className="h-3.5 w-3.5" />
+            <span className="font-medium text-gray-700">
+              {productData.nombre}
+            </span>
+          </nav>
 
-            <p className="text-sm text-green-600 mb-6 font-medium">
-              <Package className="inline h-4 w-4 mr-1.5" />
-              {productData.disponible}
-            </p>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            {/* Imágenes */}
+            <div className="lg:col-span-7">
+              <div className="grid grid-cols-2 gap-4">
+                {productData.imagen.map((src, i) => (
+                  <div
+                    key={i}
+                    className="relative aspect-[3/4] bg-gray-100 rounded-lg overflow-hidden shadow-sm"
+                  >
+                    <Image
+                      src={src || "/placeholder.svg"}
+                      alt={productData.nombre}
+                      fill
+                      className="object-cover"
+                      priority={i === 0}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
 
-            <Accordion type="single" collapsible className="w-full space-y-1">
-              <AccordionItem value="item-1" className="border-b">
-                <AccordionTrigger className="text-base font-medium hover:no-underline py-3.5 flex justify-between items-center w-full text-gray-700 hover:text-gray-900">
-                  <span>Detalles del Producto</span>
-                  <Plus className="h-5 w-5 text-gray-400 group-data-[state=open]:hidden" />
-                  <Minus className="h-5 w-5 text-gray-400 group-data-[state=closed]:hidden" />
-                </AccordionTrigger>
-                <AccordionContent className="text-sm text-gray-600 pt-2 pb-4 pl-1 pr-1">
-                  <div dangerouslySetInnerHTML={{ __html: productData.descripcion }} />
-                </AccordionContent>
-              </AccordionItem>
-              <AccordionItem value="item-2" className="border-b">
-                <AccordionTrigger className="text-base font-medium hover:no-underline py-3.5 flex justify-between items-center w-full text-gray-700 hover:text-gray-900">
-                  <span>Envío y Devoluciones</span>
-                  <Plus className="h-5 w-5 text-gray-400 group-data-[state=open]:hidden" />
-                  <Minus className="h-5 w-5 text-gray-400 group-data-[state=closed]:hidden" />
-                </AccordionTrigger>
-                <AccordionContent className="text-sm text-gray-600 pt-2 pb-4 pl-1 pr-1">
-                  <div dangerouslySetInnerHTML={{__html:"Sujeto a los termino y condiciones de nuestra página web"}} />
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
+            {/* Detalles */}
+            <div className="lg:col-span-5 space-y-4">
+              <div className="flex justify-between items-start mb-3">
+                <h1 className="text-3xl sm:text-4xl font-bold text-gray-900">
+                  {productData.nombre}
+                </h1>
+                <Button variant="ghost" size="icon">
+                  <Heart className="h-6 w-6 text-gray-500 hover:text-pink-500" />
+                </Button>
+              </div>
+
+              <p className="text-gray-600 mb-4 text-base">
+                {productData.descripcion}
+              </p>
+
+              <p className="text-3xl font-semibold text-gray-800 mb-1">
+                €{productData.precio.toFixed(2)}
+              </p>
+              {productData.originalPrice > 0 && (
+                <p className="text-sm text-gray-400 line-through mb-4">
+                  €{productData.originalPrice.toFixed(2)}
+                </p>
+              )}
+
+              <p className="text-xs text-gray-500 mb-6">
+                IVA incluido.{" "}
+                <Link href="#" className="underline hover:text-green-600">
+                  Gastos de envío
+                </Link>{" "}
+                no incluidos.
+              </p>
+
+              <div className="border rounded-md p-3 mb-6 flex items-center justify-between text-sm hover:border-gray-400 transition">
+                <span>{productData.descripcion}</span>
+                <ChevronRight className="h-5 w-5 text-gray-400" />
+              </div>
+
+              <p className="text-sm text-gray-700 mb-4 flex items-center">
+                <Truck className="h-5 w-5 mr-2 text-green-600" />
+                Compra ahora y recíbelo{" "}
+                <span className="font-semibold mx-1">entre el 17/06 y el 19/06</span>
+              </p>
+
+              {/* Cantidad + Añadir al carrito */}
+              <div className="flex items-center space-x-4 mb-6">
+                <div className="flex items-center border border-gray-300 rounded-md">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                    className="h-10 w-10"
+                  >
+                    <Minus className="h-4 w-4" />
+                  </Button>
+                  <input
+                    type="text"
+                    readOnly
+                    value={quantity}
+                    className="w-12 h-10 text-center focus:outline-none"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setQuantity(q => q + 1)}
+                    className="h-10 w-10"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+                <Button
+                  onClick={handleAddToCart}
+                  className="bg-green-600 hover:bg-green-700 text-white flex-1"
+                >
+                  <ShoppingCart className="h-5 w-5 mr-2" /> Añadir al Carrito
+                </Button>
+              </div>
+
+              <p className="text-sm text-green-600 mb-6 font-medium flex items-center">
+                <Package className="h-4 w-4 mr-1.5" />
+                {productData.disponible || "En stock"}
+              </p>
+
+              {/* Accordion */}
+              <Accordion type="single" collapsible className="w-full space-y-1">
+                <AccordionItem value="detalles" className="border-b">
+                  <AccordionTrigger className="text-base font-medium py-3.5 flex justify-between items-center text-gray-700 hover:text-gray-900">
+                    Detalles del Producto
+                  </AccordionTrigger>
+                  <AccordionContent className="text-sm text-gray-600 pt-2 pb-4">
+                    <div
+                      dangerouslySetInnerHTML={{ __html: productData.descripcion }}
+                    />
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="envio" className="border-b">
+                  <AccordionTrigger className="text-base font-medium py-3.5 flex justify-between items-center text-gray-700 hover:text-gray-900">
+                    Envío y Devoluciones
+                  </AccordionTrigger>
+                  <AccordionContent className="text-sm text-gray-600 pt-2 pb-4">
+                    <div
+                      dangerouslySetInnerHTML={{
+                        __html: "Sujeto a nuestros términos y condiciones",
+                      }}
+                    />
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </div>
           </div>
-        </div>
-      </main>
-      <Footer />
+        </main>
+        <Footer />
+      </div>
     </div>
-  )
+  );
 }

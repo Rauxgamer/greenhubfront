@@ -1,75 +1,74 @@
+// context/AuthContext.tsx
+"use client";
 
-"use client"
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { auth, onAuthStateChanged } from '@/services/firebase';  // Tu configuración de Firebase
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode
+} from "react";
+import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
+import { auth } from "@/services/firebase";            // tu instancia de firebase/auth
 import { getDoc, doc } from "firebase/firestore";
-import { db } from '@/services/firebaseConfig';
+import { db } from "@/services/firebaseConfig";
 
 interface AuthContextType {
+  user: FirebaseUser | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
-  login: () => void;
-  logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [user, setUser] = useState<FirebaseUser | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Esto se ejecuta cuando el estado de autenticación de Firebase cambia
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+      if (fbUser) {
+        setUser(fbUser);
         setIsAuthenticated(true);
-        
-        // Accedemos al rol desde Firestore
-        try {
-          const userDocRef = doc(db, 'users', user.uid); // Accede al documento del usuario en Firestore
-          const userDoc = await getDoc(userDocRef);
 
-          if (userDoc.exists()) {
-            
-            const userData = userDoc.data();
-            if (userData.role == 'admin') {
-              setIsAdmin(true);  // Si el rol es admin, establecemos isAdmin en true
-            } else {
-              setIsAdmin(false); // Si el rol no es admin, establecemos isAdmin en false
-            }
+        // Lee el rol desde Firestore
+        try {
+          const uDoc = await getDoc(doc(db, "users", fbUser.uid));
+          if (uDoc.exists()) {
+            const data = uDoc.data() as any;
+            setIsAdmin(data.role === "admin");
           } else {
-            // Si el documento no existe, tratamos como un usuario normal
             setIsAdmin(false);
           }
-        } catch (error) {
-          console.error("Error al obtener el rol de Firestore:", error);
+        } catch (e) {
+          console.error("Error leyendo rol de Firestore:", e);
+          setIsAdmin(false);
         }
-
       } else {
+        setUser(null);
         setIsAuthenticated(false);
-        setIsAdmin(false); // Si el usuario no está autenticado, establecemos isAdmin en false
+        setIsAdmin(false);
       }
-      setLoading(false); 
+      setLoading(false);
     });
-
-    // Limpiar el listener cuando el componente se desmonte
     return () => unsubscribe();
   }, []);
 
-
+  // Mientras carga, puedes retornar null o un loader
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, isAdmin }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, isAdmin }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
 export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+  const ctx = useContext(AuthContext);
+  if (!ctx) {
+    throw new Error("useAuth debe usarse dentro de <AuthProvider>");
   }
-  return context;
+  return ctx;
 };

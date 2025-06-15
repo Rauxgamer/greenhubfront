@@ -9,11 +9,13 @@ import VideoContentCard from "@/components/public/video-content-card"
 import Footer from "@/components/footer-component"
 import Link from "next/link"
 import AdminSidebar from "@/components/admin/adminSidebar"
-import Header from "@/components/header-component"
+import Header, { CartItem } from "@/components/header-component"
 
 import { useIntersectionObserver } from "@/hooks/use-intersection-observer" // Import the hook
 import { useAuth } from "@/context/AuthContext";  // Asegúrate de importar el hook useAuth
 import { AuthProvider } from "@/context/AuthContext"
+import router from "next/router"
+import { doc, setDoc } from "firebase/firestore"
 
 type ProductCardInfo = {
   imageSrc: string
@@ -135,14 +137,14 @@ export default function MetaLandingPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
-   const contentClass = !isSidebarOpen
+  const contentClass = !isSidebarOpen
     ? "w-full" // Full width if sidebar is not present
     : collapsed
-    ? "ml-20" // Sidebar collapsed (small width)
-    : "ml-64";
+      ? "ml-20" // Sidebar collapsed (small width)
+      : "ml-64";
 
 
-  const { isAuthenticated, isAdmin } = useAuth(); // Accede al contexto de autenticación
+  const { isAuthenticated, isAdmin,user } = useAuth(); // Accede al contexto de autenticación
   const heroVideoUrl =
     "https://d.media.kavehome.com/video/upload/w_auto,ar_1.7777777777777777,dpr_2,f_auto/v1748876467/home-page-videos/a-sumers-table-slide-desktop.es_ES.mp4"
 
@@ -155,12 +157,12 @@ export default function MetaLandingPage() {
   }, [])
 
   useEffect(() => {
-  if(isAuthenticated && isAdmin){
-    setIsSidebarOpen(true)
-  }
-}, [isAuthenticated, isAdmin]);
+    if (isAuthenticated && isAdmin) {
+      setIsSidebarOpen(true)
+    }
+  }, [isAuthenticated, isAdmin]);
 
- useEffect(() => {
+  useEffect(() => {
     // Script externo
     const script = document.createElement("script");
     script.src = "https://uniclick-backend.onrender.com/webchat.js";
@@ -182,178 +184,257 @@ export default function MetaLandingPage() {
     };
   }, []);
 
+
+  const [cartOpen, setCartOpen] = useState(false);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [quantity, setQuantity] = useState(1); // si lo necesitas aquí
+
+  // Carga inicial del carrito (Firestore o localStorage)
+  useEffect(() => {
+    async function loadCart() {
+      if (isAuthenticated && user) {
+        const userRef = doc(db, "users", user.uid);
+        const snap = await getDocs(collection(userRef, "carrito"));
+        setCartItems(snap.docs.map(d => {
+          const data = d.data() as any;
+          return {
+            productId: data.productoId.path,
+            nombre: data.nombre,
+            imagen: data.imagen,
+            precio: data.precio,
+            cantidad: data.cantidad,
+            total: data.total,
+          };
+        }));
+      } else {
+        const ls = localStorage.getItem("cart");
+        setCartItems(ls ? JSON.parse(ls) : []);
+      }
+    }
+    loadCart();
+  }, [isAuthenticated, user]);
+
+  // Guarda el carrito (Firestore o localStorage)
+  async function saveCart(newItems: CartItem[]) {
+    setCartItems(newItems);
+    if (isAuthenticated && user) {
+      const userRef = doc(db, "users", user.uid);
+      for (const item of newItems) {
+        const id = item.productId.replace(/\//g, "_");
+        await setDoc(doc(userRef, "carrito", id), {
+          productoId: doc(db, ...item.productId.split("/")),
+          nombre: item.nombre,
+          imagen: item.imagen,
+          precio: item.precio,
+          cantidad: item.cantidad,
+          total: item.total,
+          updatedAt: Timestamp.now(),
+        });
+      }
+    } else {
+      localStorage.setItem("cart", JSON.stringify(newItems));
+    }
+  }
+
+  // Actualiza cantidad o elimina si llega a 0
+  const updateQty = (pid: string, delta: number) => {
+    const updated = cartItems
+      .map(i => i.productId === pid
+        ? { ...i, cantidad: Math.max(1, i.cantidad + delta), total: Math.max(1, i.cantidad + delta) * i.precio }
+        : i
+      )
+      .filter(i => i.cantidad > 0);
+    saveCart(updated);
+  };
+
+  // Elimina un ítem
+  const removeItem = (pid: string) => {
+    saveCart(cartItems.filter(i => i.productId !== pid));
+  };
+
+  // Total del carrito
+  const cartTotal = cartItems.reduce((sum, i) => sum + i.total, 0);
+
   return (
-    
+
     <div className="min-h-screen bg-white text-gray-800 font-sans flex">
       <AdminSidebar
-                open={isSidebarOpen}
-                onClose={() => setIsSidebarOpen(false)}
-                variant="permanent"
-                collapsed={collapsed}
-                setCollapsed={setCollapsed}
-              />
+        open={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+        variant="permanent"
+        collapsed={collapsed}
+        setCollapsed={setCollapsed}
+      />
       <div className={`flex-1 ${contentClass} transition-all duration-300`}>
         <Header
-        collapsed={collapsed}
-        isSidebarOpen={isSidebarOpen}
-        isMobileMenuOpen={isMobileMenuOpen}
-        setIsMobileMenuOpen={setIsMobileMenuOpen} // Pasa la función para cambiar el estado
-      />
+          collapsed={collapsed}
+          isSidebarOpen={isSidebarOpen}
+          isMobileMenuOpen={isMobileMenuOpen}
+          setIsMobileMenuOpen={setIsMobileMenuOpen}
+          cartOpen={cartOpen}
+          setCartOpen={setCartOpen}
+          cartItems={cartItems}
+          updateQty={updateQty}
+          removeItem={removeItem}
+          cartTotal={cartTotal}
+          onCheckout={() => router.push("/checkout")}
+        />
 
-      <main className="relative h-screen overflow-hidden">
-        <video
-          ref={videoRef}
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="absolute top-0 left-0 w-full h-full object-cover z-0"
-          poster="/placeholder.svg?width=1920&height=1080"
-        >
-          <source src={heroVideoUrl} type="video/mp4" />
-        </video>
-        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent z-0" />
-        <div className="relative z-10 flex flex-col items-center justify-center h-full text-center px-4 pt-[calc(1.75rem+4rem+2rem)] sm:pt-[calc(1.75rem+4rem)]">
-          <AnimatedSection delay="0s">
-            <h1
-              className="text-5xl sm:text-6xl md:text-7xl font-bold mb-6 leading-tight text-white"
-              style={{ textShadow: "0 2px 6px rgba(0,0,0,0.5)" }}
-            >
-              Vida en Plena Floración
-            </h1>
-          </AnimatedSection>
-          <AnimatedSection delay="0.2s">
-            <p
-              className="text-lg sm:text-xl text-white mb-10 max-w-lg sm:max-w-2xl"
-              style={{ textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}
-            >
-              Descubre la belleza natural que transforma tu hogar. Flores frescas y plantas exuberantes, entregadas a tu
-              puerta.
-            </p>
-          </AnimatedSection>
-          <AnimatedSection
-            delay="0.4s"
-            className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-4"
+
+        <main className="relative h-screen overflow-hidden">
+          <video
+            ref={videoRef}
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="absolute top-0 left-0 w-full h-full object-cover z-0"
+            poster="/placeholder.svg?width=1920&height=1080"
           >
-            <Button
-              size="lg"
-              className="bg-green-600 hover:bg-green-700 text-white px-10 py-4 text-lg rounded-full font-semibold shadow-lg hover:shadow-xl transition-shadow w-full sm:w-auto"
-            >
-              Comprar Colección
-            </Button>
-            <Button
-              variant="outline"
-              size="lg"
-              className="bg-black/20 hover:bg-black/30 border-transparent backdrop-blur-sm text-white px-10 py-4 text-lg rounded-full font-semibold shadow-lg hover:shadow-xl transition-shadow w-full sm:w-auto"
-            >
-              Ideas de Regalo
-            </Button>
-          </AnimatedSection>
-        </div>
-      </main>
-
-      <section className="py-16 sm:py-24 bg-gray-50 overflow-hidden">
-        {" "}
-        {/* Added overflow-hidden for animations */}
-        <div className="container mx-auto px-4 text-center">
-          <AnimatedSection>
-            <h2 className="text-3xl sm:text-4xl font-bold mb-4 text-gray-800">Explora Nuestro Jardín</h2>
-            <p className="text-lg text-gray-600 mb-12 max-w-2xl mx-auto">
-              Encuentra todo lo que necesitas para llenar tu vida de naturaleza, desde ramos vibrantes hasta plantas que
-              purifican tu aire.
-            </p>
-          </AnimatedSection>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 max-w-4xl mx-auto">
-            {productCardsData.map((card, index) => (
-              <AnimatedSection key={card.title} delay={`${index * 0.1}s`}>
-                <a
-                  href={card.href}
-                  className="bg-white p-4 sm:p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 group flex flex-col items-center text-center border border-gray-200 hover:border-green-300 transform hover:-translate-y-1"
-                >
-                  <img
-                    src={card.imageSrc || "/placeholder.svg"}
-                    alt={card.title}
-                    className="h-16 sm:h-20 mb-4 sm:mb-5 rounded-md object-contain transition-transform duration-300 group-hover:scale-105"
-                  />
-                  <h3 className="text-sm sm:text-base font-semibold text-gray-800 mb-1 sm:mb-2">{card.title}</h3>
-                  <span className="text-xs sm:text-sm text-green-600 group-hover:underline font-medium">
-                    {card.linkText}
-                  </span>
-                </a>
-              </AnimatedSection>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="py-16 sm:py-24 bg-white overflow-hidden">
-        {" "}
-        {/* Added overflow-hidden */}
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 sm:gap-10 lg:gap-12 mb-8 sm:mb-10 lg:mb-12">
-            {videoSectionsData.slice(0, 2).map((section, index) => (
-              <AnimatedSection key={`row1-${index}`} delay={`${index * 0.15}s`}>
-                <VideoContentCard
-                  videoSrc={section.videoSrc}
-                  title={section.title}
-                  description={section.description}
-                  primaryButtonText={section.primaryButtonText}
-                  secondaryButtonText={section.secondaryButtonText}
-                  category={section.category}
-                  smallText={section.smallText}
-                  videoPoster={
-                    section.videoPoster || `/placeholder.svg?width=800&height=600&query=modern+plant+scene+${index + 1}`
-                  }
-                  themeColor={section.themeColor}
-                />
-              </AnimatedSection>
-            ))}
-          </div>
-
-          {videoSectionsData[2] && (
-            <AnimatedSection className="mb-8 sm:mb-10 lg:mb-12" delay="0s">
-              <VideoContentCard
-                key="row2-center"
-                videoSrc={videoSectionsData[2].videoSrc}
-                title={videoSectionsData[2].title}
-                description={videoSectionsData[2].description}
-                primaryButtonText={videoSectionsData[2].primaryButtonText}
-                secondaryButtonText={videoSectionsData[2].secondaryButtonText}
-                category={videoSectionsData[2].category}
-                smallText={videoSectionsData[2].smallText}
-                videoPoster={
-                  videoSectionsData[2].videoPoster ||
-                  `/placeholder.svg?width=1200&height=675&query=large+plant+centerpiece`
-                }
-                themeColor={videoSectionsData[2].themeColor}
-              />
+            <source src={heroVideoUrl} type="video/mp4" />
+          </video>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent z-0" />
+          <div className="relative z-10 flex flex-col items-center justify-center h-full text-center px-4 pt-[calc(1.75rem+4rem+2rem)] sm:pt-[calc(1.75rem+4rem)]">
+            <AnimatedSection delay="0s">
+              <h1
+                className="text-5xl sm:text-6xl md:text-7xl font-bold mb-6 leading-tight text-white"
+                style={{ textShadow: "0 2px 6px rgba(0,0,0,0.5)" }}
+              >
+                Vida en Plena Floración
+              </h1>
             </AnimatedSection>
-          )}
+            <AnimatedSection delay="0.2s">
+              <p
+                className="text-lg sm:text-xl text-white mb-10 max-w-lg sm:max-w-2xl"
+                style={{ textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}
+              >
+                Descubre la belleza natural que transforma tu hogar. Flores frescas y plantas exuberantes, entregadas a tu
+                puerta.
+              </p>
+            </AnimatedSection>
+            <AnimatedSection
+              delay="0.4s"
+              className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-4"
+            >
+              <Button
+                size="lg"
+                className="bg-green-600 hover:bg-green-700 text-white px-10 py-4 text-lg rounded-full font-semibold shadow-lg hover:shadow-xl transition-shadow w-full sm:w-auto"
+              >
+                Comprar Colección
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                className="bg-black/20 hover:bg-black/30 border-transparent backdrop-blur-sm text-white px-10 py-4 text-lg rounded-full font-semibold shadow-lg hover:shadow-xl transition-shadow w-full sm:w-auto"
+              >
+                Ideas de Regalo
+              </Button>
+            </AnimatedSection>
+          </div>
+        </main>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 sm:gap-10 lg:gap-12">
-            {videoSectionsData.slice(3, 5).map((section, index) => (
-              <AnimatedSection key={`row3-${index}`} delay={`${index * 0.15}s`}>
+        <section className="py-16 sm:py-24 bg-gray-50 overflow-hidden">
+          {" "}
+          {/* Added overflow-hidden for animations */}
+          <div className="container mx-auto px-4 text-center">
+            <AnimatedSection>
+              <h2 className="text-3xl sm:text-4xl font-bold mb-4 text-gray-800">Explora Nuestro Jardín</h2>
+              <p className="text-lg text-gray-600 mb-12 max-w-2xl mx-auto">
+                Encuentra todo lo que necesitas para llenar tu vida de naturaleza, desde ramos vibrantes hasta plantas que
+                purifican tu aire.
+              </p>
+            </AnimatedSection>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 max-w-4xl mx-auto">
+              {productCardsData.map((card, index) => (
+                <AnimatedSection key={card.title} delay={`${index * 0.1}s`}>
+                  <a
+                    href={card.href}
+                    className="bg-white p-4 sm:p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 group flex flex-col items-center text-center border border-gray-200 hover:border-green-300 transform hover:-translate-y-1"
+                  >
+                    <img
+                      src={card.imageSrc || "/placeholder.svg"}
+                      alt={card.title}
+                      className="h-16 sm:h-20 mb-4 sm:mb-5 rounded-md object-contain transition-transform duration-300 group-hover:scale-105"
+                    />
+                    <h3 className="text-sm sm:text-base font-semibold text-gray-800 mb-1 sm:mb-2">{card.title}</h3>
+                    <span className="text-xs sm:text-sm text-green-600 group-hover:underline font-medium">
+                      {card.linkText}
+                    </span>
+                  </a>
+                </AnimatedSection>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="py-16 sm:py-24 bg-white overflow-hidden">
+          {" "}
+          {/* Added overflow-hidden */}
+          <div className="container mx-auto px-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 sm:gap-10 lg:gap-12 mb-8 sm:mb-10 lg:mb-12">
+              {videoSectionsData.slice(0, 2).map((section, index) => (
+                <AnimatedSection key={`row1-${index}`} delay={`${index * 0.15}s`}>
+                  <VideoContentCard
+                    videoSrc={section.videoSrc}
+                    title={section.title}
+                    description={section.description}
+                    primaryButtonText={section.primaryButtonText}
+                    secondaryButtonText={section.secondaryButtonText}
+                    category={section.category}
+                    smallText={section.smallText}
+                    videoPoster={
+                      section.videoPoster || `/placeholder.svg?width=800&height=600&query=modern+plant+scene+${index + 1}`
+                    }
+                    themeColor={section.themeColor}
+                  />
+                </AnimatedSection>
+              ))}
+            </div>
+
+            {videoSectionsData[2] && (
+              <AnimatedSection className="mb-8 sm:mb-10 lg:mb-12" delay="0s">
                 <VideoContentCard
-                  videoSrc={section.videoSrc}
-                  title={section.title}
-                  description={section.description}
-                  primaryButtonText={section.primaryButtonText}
-                  secondaryButtonText={section.secondaryButtonText}
-                  category={section.category}
-                  smallText={section.smallText}
+                  key="row2-center"
+                  videoSrc={videoSectionsData[2].videoSrc}
+                  title={videoSectionsData[2].title}
+                  description={videoSectionsData[2].description}
+                  primaryButtonText={videoSectionsData[2].primaryButtonText}
+                  secondaryButtonText={videoSectionsData[2].secondaryButtonText}
+                  category={videoSectionsData[2].category}
+                  smallText={videoSectionsData[2].smallText}
                   videoPoster={
-                    section.videoPoster ||
-                    `/placeholder.svg?width=800&height=600&query=modern+plant+arrangement+${index + 3}`
+                    videoSectionsData[2].videoPoster ||
+                    `/placeholder.svg?width=1200&height=675&query=large+plant+centerpiece`
                   }
-                  themeColor={section.themeColor}
+                  themeColor={videoSectionsData[2].themeColor}
                 />
               </AnimatedSection>
-            ))}
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 sm:gap-10 lg:gap-12">
+              {videoSectionsData.slice(3, 5).map((section, index) => (
+                <AnimatedSection key={`row3-${index}`} delay={`${index * 0.15}s`}>
+                  <VideoContentCard
+                    videoSrc={section.videoSrc}
+                    title={section.title}
+                    description={section.description}
+                    primaryButtonText={section.primaryButtonText}
+                    secondaryButtonText={section.secondaryButtonText}
+                    category={section.category}
+                    smallText={section.smallText}
+                    videoPoster={
+                      section.videoPoster ||
+                      `/placeholder.svg?width=800&height=600&query=modern+plant+arrangement+${index + 3}`
+                    }
+                    themeColor={section.themeColor}
+                  />
+                </AnimatedSection>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
-      <Footer />
+        </section>
+        <Footer />
+      </div>
     </div>
-  </div>
   )
 }

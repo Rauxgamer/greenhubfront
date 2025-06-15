@@ -1,46 +1,8 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+// middleware.ts
+import { NextResponse } from "next/server"
+import type { NextRequest } from "next/server"
 
-// Rutas protegidas
-const protectedPaths = ["/admin", "/user", "/checkout"];
-
-// Rutas públicas
-const publicPaths = ["/login", "/signup", "/", "/products"];
-
-// Simulación de validación del token (en ausencia de backend)
-const validateToken = (token: string | undefined) => {
-  // Aquí deberías hacer la validación real con tu backend posteriormente
-  return Boolean(token); // Simula validación: token existente es válido
-};
-
-export async function middleware(request: NextRequest) {
-  const response = NextResponse.next();
-  const path = request.nextUrl.pathname;
-
-  const token = request.cookies.get("token")?.value;
-
-  const isProtectedPath = protectedPaths.some((protectedPath) =>
-    path.startsWith(protectedPath)
-  );
-
-  // Si accedes a una ruta protegida, verifica autenticación
-  if (isProtectedPath) {
-    if (!validateToken(token)) {
-      // Si no es válido, limpia cookie y redirige al login
-      response.cookies.delete("token");
-      return NextResponse.redirect(new URL("/login", request.url));
-    }
-  }
-
-  // Si ya está autenticado e intenta acceder a login o signup, redirige a /user
-  if (token && ["/login", "/signup"].includes(path)) {
-    return NextResponse.redirect(new URL("/user", request.url));
-  }
-
-  return response;
-}
-
-// Aplicar middleware solo en rutas específicas y evitar estáticos y archivos
+// Configuramos en qué rutas corre el middleware:
 export const config = {
   matcher: [
     "/admin/:path*",
@@ -49,4 +11,34 @@ export const config = {
     "/login",
     "/signup",
   ],
-};
+}
+
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+  const token = request.cookies.get("token")?.value
+
+  // 1) Rutas protegidas: /admin, /user, /checkout
+  if (
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/user") 
+  ) {
+    if (!token) {
+      // si no hay token, redirigimos a login y borramos la cookie
+      const loginUrl = request.nextUrl.clone()
+      loginUrl.pathname = "/login"
+      const res = NextResponse.redirect(loginUrl)
+      res.cookies.delete("token", { path: "/" })
+      return res
+    }
+  }
+
+  // 2) Si ya estás logueado e intentas ir a /login o /signup, te mandamos a /user
+  if (token && (pathname === "/login" || pathname === "/signup")) {
+    const userUrl = request.nextUrl.clone()
+    userUrl.pathname = "/user"
+    return NextResponse.redirect(userUrl)
+  }
+
+  // 3) En cualquier otro caso, continúa normalmente
+  return NextResponse.next()
+}
