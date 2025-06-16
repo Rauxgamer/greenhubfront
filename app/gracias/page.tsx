@@ -136,7 +136,7 @@ export default function ThanksPage() {
         setIsMobileMenuOpen={setIsMobileMenuOpen}
       />
 
-      <main className="flex-1 max-w-3xl mx-auto py-8 px-4">
+      <main className="flex-1 max-w-3xl mx-auto px-4 pt-32 pb-8">
         <Link
           href="/home"
           className="inline-flex items-center text-gray-600 hover:text-gray-800 mb-6"
