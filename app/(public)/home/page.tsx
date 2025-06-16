@@ -163,26 +163,27 @@ export default function MetaLandingPage() {
   }, [isAuthenticated, isAdmin]);
 
   useEffect(() => {
-    // Script externo
-    const script = document.createElement("script");
-    script.src = "https://uniclick-backend.onrender.com/webchat.js";
-    script.setAttribute("data-project-id", "867a239c-340b-46ca-9a81-133b7c33a828-690");
-    script.setAttribute("data-backend-url", "https://uniclick-backend.onrender.com");
-    script.async = true;
-    document.body.appendChild(script);
+  const existingScript = document.querySelector('script[src="https://uniclick-backend.onrender.com/webchat.js"]');
+  if (existingScript) return;
 
-    // Session ID logic
-    let sessionId = sessionStorage.getItem("webchat_sessionId");
-    if (!sessionId) {
-      sessionId = "session-" + Math.random().toString(36).substr(2, 9);
-      sessionStorage.setItem("webchat_sessionId", sessionId);
-    }
+  const script = document.createElement("script");
+  script.src = "https://uniclick-backend.onrender.com/webchat.js";
+  script.setAttribute("data-project-id", "867a239c-340b-46ca-9a81-133b7c33a828-690");
+  script.setAttribute("data-backend-url", "https://uniclick-backend.onrender.com");
+  script.async = true;
+  document.body.appendChild(script);
 
-    return () => {
-      // Limpieza opcional del script si abandonas la página
-      document.body.removeChild(script);
-    };
-  }, []);
+  let sessionId = sessionStorage.getItem("webchat_sessionId");
+  if (!sessionId) {
+    sessionId = "session-" + Math.random().toString(36).substr(2, 9);
+    sessionStorage.setItem("webchat_sessionId", sessionId);
+  }
+
+  return () => {
+    if (script.parentNode) script.parentNode.removeChild(script);
+  };
+}, []);
+
 
 
   const [cartOpen, setCartOpen] = useState(false);
