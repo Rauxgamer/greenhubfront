@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, { useState, useEffect } from "react";
 import {
@@ -20,8 +20,6 @@ import {
   getDoc,
   onSnapshot,
   setDoc,
-  updateDoc,
-  deleteDoc,
   Timestamp,
 } from "firebase/firestore";
 import { db } from "@/services/firebaseConfig";
@@ -55,12 +53,12 @@ const Header: React.FC<HeaderProps> = ({
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // referencia al doc único carrito
+  // Ref al documento carrito
   const carritoDocRef = isAuthenticated && user
     ? doc(db, "users", user.uid, "carrito", "carrito")
     : null;
 
-  // 1) Suscripción/lectura
+  // Suscripción a cambios en Firestore / localStorage
   useEffect(() => {
     if (carritoDocRef) {
       const unsub = onSnapshot(carritoDocRef, async (snap) => {
@@ -70,75 +68,41 @@ const Header: React.FC<HeaderProps> = ({
           return;
         }
         const data = snap.data();
-        const arr: any[] = Array.isArray(data.productos) ? data.productos : [];
-        // por cada entrada, traigo detalles del producto
-        const detalles = await Promise.all(
-          arr.map(async entry => {
-            const prodSnap = await getDoc(entry.productoId);
-            const pd = prodSnap.data() as any;
-            return {
-              productId: entry.productoId.path,
-              nombre: pd.nombre,
-              imagen: Array.isArray(pd.imagen) ? pd.imagen[0] : pd.imagen,
-              precio: pd.precio,
-              cantidad: entry.cantidad,
-              total: entry.cantidad * pd.precio,
-            } as CartItem;
-          })
-        );
+        const arr = Array.isArray(data.productos) ? data.productos : [];
+        const detalles = await Promise.all(arr.map(async (entry: any) => {
+          const prodSnap = await getDoc(entry.productoId);
+          const pd = prodSnap.data() as any;
+          return {
+            productId: entry.productoId.path,
+            nombre: pd.nombre,
+            imagen: Array.isArray(pd.imagen) ? pd.imagen[0] : pd.imagen,
+            precio: pd.precio,
+            cantidad: entry.cantidad,
+            total: entry.cantidad * pd.precio,
+          } as CartItem;
+        }));
         setCartItems(detalles);
         setLoading(false);
       });
       return () => unsub();
     } else {
-      // fallback a localStorage
       const ls = localStorage.getItem("cart");
       setCartItems(ls ? JSON.parse(ls) : []);
       setLoading(false);
     }
   }, [carritoDocRef]);
 
-  // 2) Si no está autenticado, guardo en localStorage
   useEffect(() => {
     if (!isAuthenticated) {
       localStorage.setItem("cart", JSON.stringify(cartItems));
     }
   }, [cartItems, isAuthenticated]);
 
-  // helpers para operar el carrito
   const cartTotal = cartItems.reduce((s, i) => s + i.total, 0);
 
   const updateQty = async (pid: string, delta: number) => {
-    if (carritoDocRef) {
-      // leo snapshot
-      const snap = await getDoc(carritoDocRef);
-      if (!snap.exists()) return;
-      const { productos = [] } = snap.data() as any;
-      const idx = productos.findIndex((e: any) => e.productoId.path === pid);
-      if (idx < 0) return;
-      const prev = productos[idx];
-      const nuevaQty = Math.max(0, prev.cantidad + delta);
-      // nuevo array
-      const next = [...productos];
-      next.splice(idx, 1);
-      if (nuevaQty > 0) {
-        next.splice(idx, 0, { productoId: prev.productoId, cantidad: nuevaQty });
-      }
-      // recalculo total
-      const totalNuevo = cartItems
-        .map(i => i.productId === pid
-          ? (i.cantidad + delta) * i.precio
-          : i.total
-        )
-        .reduce((s, x) => s + x, 0);
-
-      await setDoc(carritoDocRef, {
-        productos: next,
-        total: totalNuevo,
-        updatedAt: Timestamp.now(),
-      }, { merge: true });
-    } else {
-      // local
+    if (!carritoDocRef) {
+      // localStorage fallback
       const updated = cartItems
         .map(i =>
           i.productId === pid
@@ -147,30 +111,51 @@ const Header: React.FC<HeaderProps> = ({
         )
         .filter(i => i.cantidad > 0);
       setCartItems(updated);
+      return;
     }
+    // Firestore update
+    const snap = await getDoc(carritoDocRef);
+    if (!snap.exists()) return;
+    const { productos = [] } = snap.data() as any;
+    const idx = productos.findIndex((e: any) => e.productoId.path === pid);
+    if (idx < 0) return;
+    const prev = productos[idx];
+    const nuevaQty = Math.max(0, prev.cantidad + delta);
+    const next = [...productos];
+    next.splice(idx, 1);
+    if (nuevaQty > 0) {
+      next.splice(idx, 0, { productoId: prev.productoId, cantidad: nuevaQty });
+    }
+    const totalNuevo = cartItems
+      .map(i => i.productId === pid ? (i.cantidad + delta) * i.precio : i.total)
+      .reduce((s, x) => s + x, 0);
+    await setDoc(carritoDocRef, {
+      productos: next,
+      total: totalNuevo,
+      updatedAt: Timestamp.now(),
+    }, { merge: true });
   };
 
   const removeItem = async (pid: string) => {
-    if (carritoDocRef) {
-      const snap = await getDoc(carritoDocRef);
-      if (!snap.exists()) return;
-      const { productos = [] } = snap.data() as any;
-      const next = productos.filter((e: any) => e.productoId.path !== pid);
-      const totalNuevo = cartItems.filter(i => i.productId !== pid).reduce((s, i) => s + i.total, 0);
-      await setDoc(carritoDocRef, {
-        productos: next,
-        total: totalNuevo,
-        updatedAt: Timestamp.now(),
-      }, { merge: true });
-    } else {
+    if (!carritoDocRef) {
       setCartItems(cartItems.filter(i => i.productId !== pid));
+      return;
     }
+    const snap = await getDoc(carritoDocRef);
+    if (!snap.exists()) return;
+    const { productos = [] } = snap.data() as any;
+    const next = productos.filter((e: any) => e.productoId.path !== pid);
+    const totalNuevo = cartItems.filter(i => i.productId !== pid).reduce((s, i) => s + i.total, 0);
+    await setDoc(carritoDocRef, {
+      productos: next,
+      total: totalNuevo,
+      updatedAt: Timestamp.now(),
+    }, { merge: true });
   };
 
+  // Posición del header según sidebar
   const headerLeft = isSidebarOpen
-    ? collapsed
-      ? "left-20"
-      : "left-64"
+    ? collapsed ? "left-20" : "left-64"
     : "left-0";
 
   return (
@@ -208,7 +193,7 @@ const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
 
-          {/* Right */}
+          {/* Right (desktop) */}
           <div className="hidden md:flex items-center space-x-6 text-sm font-medium">
             <Link href="/products" className="hover:text-green-600">Productos</Link>
             <Link href="/blog" className="hover:text-green-600">Blog</Link>
@@ -223,7 +208,10 @@ const Header: React.FC<HeaderProps> = ({
                 </span>
               )}
             </button>
-            <button className="relative hover:text-green-600">
+            <button
+              className="hover:text-green-600"
+              onClick={() => router.push('/user')}
+            >
               <User className="h-5 w-5" />
             </button>
           </div>
@@ -231,8 +219,13 @@ const Header: React.FC<HeaderProps> = ({
           {/* Mobile icons */}
           <div className="md:hidden flex items-center space-x-3">
             <Search className="h-5 w-5 text-gray-600" />
-            <User className="h-5 w-5 text-gray-600" />
-            <button onClick={() => setCartOpen(!cartOpen)} className="relative">
+            <button onClick={() => router.push('/user')}>
+              <User className="h-5 w-5 text-gray-600" />
+            </button>
+            <button
+              onClick={() => setCartOpen(!cartOpen)}
+              className="relative"
+            >
               <ShoppingBag className="h-5 w-5 text-gray-600" />
               {!loading && cartItems.length > 0 && (
                 <span className="absolute top-0 right-0 inline-flex items-center justify-center px-1 text-xs font-bold text-white bg-red-600 rounded-full">
@@ -245,26 +238,43 @@ const Header: React.FC<HeaderProps> = ({
 
         {/* Mobile menu */}
         {isMobileMenuOpen && (
-          <div className={`md:hidden fixed inset-0 top-[calc(1.75rem+4rem)] z-40 bg-white/95 text-gray-800 p-6 space-y-4 backdrop-blur-md shadow-xl ${collapsed ? "ml-20" : "ml-64"}`}>
-            <div className="flex items-center bg-gray-100 rounded-md px-3 py-2 mb-6">
-              <Search className="h-5 w-5 text-gray-500 mr-2" />
-              <input
-                type="search"
-                placeholder="Buscar..."
-                className="bg-transparent text-sm placeholder-gray-500 focus:outline-none w-full"
-              />
-            </div>
-            {["Productos","Blog","Mi Cuenta","Favoritos"].map(item => (
-              <Link
-                key={item}
-                href={ item==="Productos"?"/products": item==="Blog"?"/blog":"/" }
-                className="block py-2 hover:text-green-600 transition-colors text-lg"
-              >
-                {item}
-              </Link>
-            ))}
-          </div>
-        )}
+  <div
+    className="
+      md:hidden fixed inset-x-0 
+      z-[70] bg-white/95 text-gray-800 p-6 space-y-4 shadow-xl
+    "
+    style={{
+      // Ajusta este valor si tu header es mayor o menor de 64px
+      top: '64px',                
+      height: 'calc(100vh - 64px)' 
+    }}
+  >
+    {/* buscador */}
+    <div className="flex items-center bg-gray-100 rounded-md px-3 py-2 mb-6">
+      <Search className="h-5 w-5 text-gray-500 mr-2" />
+      <input
+        type="search"
+        placeholder="Buscar..."
+        className="bg-transparent text-sm placeholder-gray-500 focus:outline-none w-full"
+      />
+    </div>
+    {["Productos", "Blog", "Mi Cuenta", "Favoritos"].map(item => (
+      <Link
+        key={item}
+        href={
+          item === "Productos" ? "/products" :
+          item === "Blog"       ? "/blog"    :
+          item === "Mi Cuenta"  ? "/user"    :
+          "/"
+        }
+        className="block py-2 hover:text-green-600 transition-colors text-lg"
+      >
+        {item}
+      </Link>
+    ))}
+  </div>
+)}
+
       </div>
 
       {/* Cart panel */}
