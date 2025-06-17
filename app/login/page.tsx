@@ -1,4 +1,5 @@
 'use client';
+
 import { useState } from 'react';
 import { Box, Typography, Button, Paper, Stack, IconButton } from '@mui/material';
 import Image from 'next/image';
@@ -12,23 +13,60 @@ export default function LoginPage() {
   const [isLogin, setIsLogin] = useState(true);
 
   return (
-    <Box display="flex" minHeight="100vh" bgcolor="#f8f8f8">
-      {/* Zona izquierda */}
-      <Box flex={1} display="flex" justifyContent="center" alignItems="center" sx={{ bgcolor: '#A5D6A7' }}>
+    <Box
+      display="flex"
+      flexDirection={{ xs: 'column', md: 'row' }}
+      minHeight="100vh"
+      bgcolor="#f8f8f8"
+    >
+      {/* Zona bienvenida */}
+      <Box
+        flex={1}
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        sx={{
+          bgcolor: '#A5D6A7',
+          p: { xs: 4, md: 0 },
+          height: { xs: 'auto', md: '100vh' },
+        }}
+      >
         <Stack spacing={2} alignItems="center">
           <Image src="/log.png" alt="Logo" width={120} height={120} />
-          <Typography variant="h4" fontWeight="bold" color="#2E7D32">
+          <Typography
+            variant="h4"
+            fontWeight="bold"
+            color="#2E7D32"
+            sx={{ textAlign: { xs: 'center', md: 'left' } }}
+          >
             ¡Bienvenido a GreenHub!
           </Typography>
-          <Typography variant="subtitle1" color="#4CAF50">
+          <Typography
+            variant="subtitle1"
+            color="#4CAF50"
+            sx={{ textAlign: { xs: 'center', md: 'left' } }}
+          >
             La mejor selección de plantas para tu hogar
           </Typography>
         </Stack>
       </Box>
 
-      {/* Zona derecha (formularios dinámicos) */}
-      <Box flex={1} display="flex" justifyContent="center" alignItems="center">
-        <Paper elevation={3} sx={{ padding: 4, width: '80%', maxWidth: 500 }}>
+      {/* Zona formularios */}
+      <Box
+        flex={1}
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        sx={{ p: { xs: 2, md: 0 } }}
+      >
+        <Paper
+          elevation={3}
+          sx={{
+            p: 4,
+            width: { xs: '100%', sm: '80%', md: '80%' },
+            maxWidth: 500,
+          }}
+        >
           <Box display="flex" justifyContent="flex-end" mb={2}>
             <IconButton component={Link} href="/home" color="primary">
               <HomeIcon />
