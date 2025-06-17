@@ -1,4 +1,4 @@
-import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
+import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import {app} from './firebaseConfig'
 
 const db = getFirestore(app);
@@ -17,10 +17,25 @@ export const getUserProfile = async (userId: string) => {
 };
 
 // Crea o actualiza el perfil del usuario en Firestore
-export const createOrUpdateUserProfile = async (userId: string, userData: any) => {
-  const docRef = doc(db, "users", userId);
-  await setDoc(docRef, userData, { merge: true });
-};
+export async function createOrUpdateUserProfile(uid: string, data: Record<string, any>) {
+  const ref = doc(db, "users", uid);
+  const snap = await getDoc(ref);
+
+  if (!snap.exists()) {
+    // Si no existía, incluimos createdAt + el resto
+    await setDoc(ref, {
+      ...data,
+      createdAt: serverTimestamp(),  // timestamp real
+      updatedAt: serverTimestamp(),
+    });
+  } else {
+    // Si ya existía, solo mergedata + updatedAt
+    await setDoc(ref, {
+      ...data,
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
+  }
+}
 
 
 export const getToken = (): string | null => {

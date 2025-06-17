@@ -38,6 +38,7 @@ interface Product {
 }
 
 export default function PlantasPage() {
+  
   const router = useRouter();
   const { isAuthenticated, isAdmin, user } = useAuth();
 

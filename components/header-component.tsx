@@ -25,6 +25,7 @@ import {
   getDocs,
 } from "firebase/firestore";
 import { db } from "@/services/firebaseConfig";
+import WidgetManagerWrapper from "./widget-wraper-component";
 
 export interface CartItem {
   productId: string;
@@ -221,7 +222,9 @@ export default function Header({
     : "left-0";
 
   return (
+   
     <header className={`fixed top-0 ${headerLeft} right-0 z-50 transition-all duration-300`}>
+    
       {/* Promo bar */}
       <div className="bg-green-600 text-white text-xs text-center py-2">
         <a href="#" className="hover:underline">

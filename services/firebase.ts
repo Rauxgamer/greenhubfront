@@ -3,7 +3,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { setCookie, destroyCookie } from 'nookies';
 import { app } from './firebaseConfig';
 import { createOrUpdateUserProfile } from './authService';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc,serverTimestamp,setDoc } from 'firebase/firestore';
 import { db } from './firebaseConfig';
 
 const auth = getAuth(app);
@@ -32,35 +32,40 @@ const getUserRoleFromFirestore = async (uid: string) => {
 // Login por email y password
 export const loginUser = async (email: string, password: string) => {
   const userCredential = await signInWithEmailAndPassword(auth, email, password);
-  const token = await userCredential.user.getIdToken(true); // 'true' fuerza la actualización del token
+  const { user } = userCredential;
+  const token = await user.getIdToken(true);
 
-  // Guardar el token en las cookies
+  // 1) Token en cookie
   setCookie(null, 'token', token, {
-    maxAge: 30 * 24 * 60 * 60, 
+    maxAge: 30 * 24 * 60 * 60,
     path: '/',
     secure: true,
   });
 
-  // Actualizar datos del usuario en Firestore
-  const { uid, email: userEmail, displayName, photoURL } = userCredential.user;
-  const role = await getUserRoleFromFirestore(uid); // Obtener rol desde Firestore
+  // 2) Recoger datos
+  const { uid, email: userEmail, displayName = 'Nuevo usuario', photoURL = '' } = user;
+  const role = await getUserRoleFromFirestore(uid);
+
+  // 3) Crear o actualizar perfil
+  //    createOrUpdateUserProfile debe usar serverTimestamp() para createdAt y lastLogin
   await createOrUpdateUserProfile(uid, {
     email: userEmail,
-    displayName: displayName || 'Nuevo usuario',
-    photoURL: photoURL || '',
-    emailVerified: userCredential.user.emailVerified,
-    lastLogin: new Date(),
-    role: role, 
-    username: displayName || 'Nuevo usuario',
-    bio: 'Sin descripción'
+    displayName,
+    photoURL,
+    emailVerified: user.emailVerified,
+    lastLogin: serverTimestamp(),
+    // NO vuelvas a fijar createdAt si ya existe
+    role,
+    username: displayName,
+    bio: 'Sin descripción',
   });
 
-  // Si el rol es admin, asignar el rol en el custom claims del token
+  // 4) Si es admin, asignar custom claim y refrescar token
   if (role === 'admin') {
-    await assignAdminRole(uid); // Llamada al Admin SDK para asignar el rol "admin"
-    const updatedToken = await userCredential.user.getIdToken(true); // Refresca el token después de asignar el rol
-    setCookie(null, 'token', updatedToken, {
-      maxAge: 30 * 24 * 60 * 60, 
+    await assignAdminRole(uid);
+    const newToken = await user.getIdToken(true);
+    setCookie(null, 'token', newToken, {
+      maxAge: 30 * 24 * 60 * 60,
       path: '/',
       secure: true,
     });
@@ -70,41 +75,74 @@ export const loginUser = async (email: string, password: string) => {
 };
 
 // Login con Google
-export const loginWithGoogle = async () => {
+export const loginWithGoogle = async (): Promise<UserCredential> => {
   const provider = new GoogleAuthProvider();
+  // 1) Hacemos el login y guardamos el UserCredential completo:
   const userCredential = await signInWithPopup(auth, provider);
-  const token = await userCredential.user.getIdToken(true); 
+  const user = userCredential.user;
+  const uid = user.uid;
 
-  // Guardar el token en las cookies
-  setCookie(null, 'token', token, {
-    maxAge: 30 * 24 * 60 * 60, 
-    path: '/',
+  // 2) Obtenemos el token y lo guardamos en cookie
+  const token = await user.getIdToken(true);
+  setCookie(null, "token", token, {
+    maxAge: 30 * 24 * 60 * 60,
+    path: "/",
     secure: true,
   });
 
-  // Actualizar datos del usuario en Firestore
-  const { uid, email, displayName, photoURL } = userCredential.user;
-  assignAdminRole(uid);
-  const role = await getUserRoleFromFirestore(uid); 
-  await createOrUpdateUserProfile(uid, {
-    lastLogin: new Date(),
-    role: role, 
-  });
+  // 3) Datos básicos de usuario
+  const email = user.email ?? "";
+  const displayName = user.displayName ?? "Nuevo usuario";
+  const photoURL = user.photoURL ?? "";
+  const emailVerified = user.emailVerified;
 
-  // Si el rol es admin, asignar el rol en el custom claims del token
-  if (role === 'admin') {
-    await assignAdminRole(uid); // Llamada al Admin SDK para asignar el rol "admin"
-    const updatedToken = await userCredential.user.getIdToken(true); // Refresca el token después de asignar el rol
-    setCookie(null, 'token', updatedToken, {
-      maxAge: 30 * 24 * 60 * 60, 
-      path: '/',
+  // 4) Role desde Firestore
+  const role = await getUserRoleFromFirestore(uid);
+
+  // 5) Ref a Firestore
+  const userRef = doc(db, "users", uid);
+  const snap = await getDoc(userRef);
+
+  if (!snap.exists()) {
+    // Nuevo usuario: creamos todos los campos
+    await setDoc(userRef, {
+      email,
+      displayName,
+      photoURL,
+      emailVerified,
+      role,
+      username: displayName,
+      bio: "Sin descripción",
+      createdAt: serverTimestamp(),
+      lastLogin: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  } else {
+    // Ya existía: solo update de login
+    await setDoc(
+      userRef,
+      {
+        lastLogin: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  }
+
+  // 6) Si admin → asignamos custom claim y refrescamos token
+  if (role === "admin") {
+    await assignAdminRole(uid);
+    const newToken = await user.getIdToken(true); 
+    setCookie(null, "token", newToken, {
+      maxAge: 30 * 24 * 60 * 60,
+      path: "/",
       secure: true,
     });
   }
 
+  // Devolvemos el credential completo
   return userCredential;
 };
-
 // Logout del usuario
 export const logoutUser = async () => {
   await auth.signOut();

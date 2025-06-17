@@ -15,7 +15,8 @@ import { useIntersectionObserver } from "@/hooks/use-intersection-observer" // I
 import { useAuth } from "@/context/AuthContext";  // Asegúrate de importar el hook useAuth
 import { AuthProvider } from "@/context/AuthContext"
 import router from "next/router"
-import { doc, setDoc } from "firebase/firestore"
+import { collection, doc, getDocs, setDoc, Timestamp } from "firebase/firestore"
+import { usePathname } from "next/navigation"
 
 type ProductCardInfo = {
   imageSrc: string
@@ -162,28 +163,6 @@ export default function MetaLandingPage() {
     }
   }, [isAuthenticated, isAdmin]);
 
-  useEffect(() => {
-  const existingScript = document.querySelector('script[src="https://uniclick-backend.onrender.com/webchat.js"]');
-  if (existingScript) return;
-
-  const script = document.createElement("script");
-  script.src = "https://uniclick-backend.onrender.com/webchat.js";
-  script.setAttribute("data-project-id", "867a239c-340b-46ca-9a81-133b7c33a828-690");
-  script.setAttribute("data-backend-url", "https://uniclick-backend.onrender.com");
-  script.async = true;
-  document.body.appendChild(script);
-
-  let sessionId = sessionStorage.getItem("webchat_sessionId");
-  if (!sessionId) {
-    sessionId = "session-" + Math.random().toString(36).substr(2, 9);
-    sessionStorage.setItem("webchat_sessionId", sessionId);
-  }
-
-  return () => {
-    if (script.parentNode) script.parentNode.removeChild(script);
-  };
-}, []);
-
 
 
   const [cartOpen, setCartOpen] = useState(false);
@@ -257,7 +236,7 @@ export default function MetaLandingPage() {
   const cartTotal = cartItems.reduce((sum, i) => sum + i.total, 0);
 
   return (
-
+    
     <div className="min-h-screen bg-white text-gray-800 font-sans flex">
       <AdminSidebar
         open={isSidebarOpen}
