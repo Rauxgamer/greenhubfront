@@ -223,7 +223,7 @@ export default function Header({
 
   return (
    
-    <header className={`fixed top-0 ${headerLeft} right-0 z-50 transition-all duration-300`}>
+    <header className={`fixed top-0 ${headerLeft} right-0 z-[99999] transition-all duration-300`}>
     
       {/* Promo bar */}
       <div className="bg-green-600 text-white text-xs text-center py-2">
@@ -390,7 +390,7 @@ export default function Header({
 
       {/* Cart panel */}
       {cartOpen && (
-        <div className="fixed top-0 right-0 h-full bg-white shadow-lg z-50 w-96 sm:max-w-sm flex flex-col">
+          <div className="fixed top-0 right-0 h-full bg-white shadow-lg w-96 sm:max-w-sm flex flex-col z-[9999]">
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b">
             <h2 className="font-semibold">Tu Carrito</h2>
