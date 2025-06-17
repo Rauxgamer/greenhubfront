@@ -73,7 +73,11 @@ export default function LoginPage() {
             </IconButton>
           </Box>
 
-          {isLogin ? <LoginForm /> : <RegisterForm />}
+          {isLogin ? (
+            <LoginForm />
+          ) : (
+            <RegisterForm />
+          )}
 
           <Box textAlign="center" mt={2}>
             {isLogin ? (
