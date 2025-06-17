@@ -340,8 +340,8 @@ export default function PlantasPage() {
                     <Slider.Thumb className="block h-4 w-4 rounded-full bg-white border-2 border-green-600 focus:outline-none focus:ring-2 focus:ring-green-600" />
                   </Slider.Root>
                   <div className="flex justify-between text-sm mt-1">
-                    <span>${priceRange[0]}</span>
-                    <span>${priceRange[1]}</span>
+                    <span>€{priceRange[0]}</span>
+                    <span>€{priceRange[1]}</span>
                   </div>
                 </div>
                 <button
