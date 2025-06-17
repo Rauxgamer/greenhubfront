@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Search,
   Menu,
@@ -21,6 +21,8 @@ import {
   onSnapshot,
   setDoc,
   Timestamp,
+  collection,
+  getDocs,
 } from "firebase/firestore";
 import { db } from "@/services/firebaseConfig";
 
@@ -33,6 +35,13 @@ export interface CartItem {
   total: number;
 }
 
+interface ProductSuggestion {
+  nombre: string;
+  precio: number;
+  imagen: string;
+  categoryFolder: string;
+}
+
 interface HeaderProps {
   collapsed: boolean;
   isSidebarOpen: boolean;
@@ -40,35 +49,35 @@ interface HeaderProps {
   setIsMobileMenuOpen: (val: boolean) => void;
 }
 
-const Header: React.FC<HeaderProps> = ({
+export default function Header({
   collapsed,
   isSidebarOpen,
   isMobileMenuOpen,
   setIsMobileMenuOpen,
-}) => {
+}: HeaderProps) {
   const router = useRouter();
   const { user, isAuthenticated } = useAuth();
 
+  // Estado carrito
   const [cartOpen, setCartOpen] = useState(false);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Ref al documento carrito
+  // Ref a Firestore carrito
   const carritoDocRef = isAuthenticated && user
     ? doc(db, "users", user.uid, "carrito", "carrito")
     : null;
 
-  // Suscripción a cambios en Firestore / localStorage
+  // Suscripción al carrito
   useEffect(() => {
     if (carritoDocRef) {
-      const unsub = onSnapshot(carritoDocRef, async (snap) => {
+      const unsub = onSnapshot(carritoDocRef, async snap => {
         if (!snap.exists()) {
           setCartItems([]);
           setLoading(false);
           return;
         }
-        const data = snap.data();
-        const arr = Array.isArray(data.productos) ? data.productos : [];
+        const arr = Array.isArray(snap.data().productos) ? snap.data().productos : [];
         const detalles = await Promise.all(arr.map(async (entry: any) => {
           const prodSnap = await getDoc(entry.productoId);
           const pd = prodSnap.data() as any;
@@ -92,17 +101,16 @@ const Header: React.FC<HeaderProps> = ({
     }
   }, [carritoDocRef]);
 
+  // Persistir carrito en localStorage si no está autenticado
   useEffect(() => {
     if (!isAuthenticated) {
       localStorage.setItem("cart", JSON.stringify(cartItems));
     }
   }, [cartItems, isAuthenticated]);
 
-  const cartTotal = cartItems.reduce((s, i) => s + i.total, 0);
-
   const updateQty = async (pid: string, delta: number) => {
     if (!carritoDocRef) {
-      // localStorage fallback
+      // fallback local
       const updated = cartItems
         .map(i =>
           i.productId === pid
@@ -123,9 +131,7 @@ const Header: React.FC<HeaderProps> = ({
     const nuevaQty = Math.max(0, prev.cantidad + delta);
     const next = [...productos];
     next.splice(idx, 1);
-    if (nuevaQty > 0) {
-      next.splice(idx, 0, { productoId: prev.productoId, cantidad: nuevaQty });
-    }
+    if (nuevaQty > 0) next.splice(idx, 0, { productoId: prev.productoId, cantidad: nuevaQty });
     const totalNuevo = cartItems
       .map(i => i.productId === pid ? (i.cantidad + delta) * i.precio : i.total)
       .reduce((s, x) => s + x, 0);
@@ -153,7 +159,63 @@ const Header: React.FC<HeaderProps> = ({
     }, { merge: true });
   };
 
-  // Posición del header según sidebar
+  const cartTotal = cartItems.reduce((s, i) => s + i.total, 0);
+
+  // — BÚSQUEDA DINÁMICA —
+  const [searchTerm, setSearchTerm] = useState("");
+  const [allProducts, setAllProducts] = useState<ProductSuggestion[]>([]);
+  const [suggestions, setSuggestions] = useState<ProductSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const loadedRef = useRef(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Carga inicial de todos los productos
+  const fetchAllProducts = async () => {
+    if (allProducts.length) return;
+    if (loadedRef.current) return;
+    const cats = ["arboles","macetas","plantas","semillas","decoracion","fertilizantes","herramientas"];
+    const loaded: ProductSuggestion[] = [];
+    for (const cat of cats) {
+      const snap = await getDocs(collection(db, "productos", cat, "tipos"));
+      snap.forEach(d => {
+        const data = d.data() as any;
+        loaded.push({
+          nombre: data.nombre,
+          precio: data.precio,
+          imagen: Array.isArray(data.imagen) ? data.imagen[0] : data.imagen,
+          categoryFolder: cat,
+        });
+      });
+    }
+    setAllProducts(loaded);
+    loadedRef.current = true;
+  };
+
+
+
+  // Filtra sugerencias
+  useEffect(() => {
+    const q = searchTerm.trim().toLowerCase();
+    if (!q) {
+      setSuggestions([]);
+    } else {
+      setSuggestions(
+        allProducts
+          .filter(p => p.nombre.toLowerCase().includes(q))
+          .slice(0, 5)
+      );
+    }
+  }, [searchTerm, allProducts]);
+
+
+  const doSearch = () => {
+    const q = searchTerm.trim();
+    if (!q) return;
+    router.push(`/products?producto=${encodeURIComponent(q)}`);
+    setShowSuggestions(false);
+  };
+
+  // Posición según sidebar
   const headerLeft = isSidebarOpen
     ? collapsed ? "left-20" : "left-64"
     : "left-0";
@@ -183,13 +245,47 @@ const Header: React.FC<HeaderProps> = ({
             <Link href="/home" className="text-2xl font-bold tracking-tight">
               Green<span className="text-green-600">Hub</span>
             </Link>
-            <div className="hidden md:flex items-center rounded-md px-3 py-1.5 bg-gray-100">
-              <Search className="h-4 w-4 mr-2 text-gray-500" />
+            {/* DESKTOP SEARCH */}
+            <div className="hidden md:flex items-center relative">
+              <Search
+                className="h-4 w-4 mr-2 text-gray-500 cursor-pointer"
+                onClick={doSearch}
+              />
               <input
+                ref={inputRef}
                 type="search"
                 placeholder="Buscar flores, plantas..."
-                className="bg-transparent text-sm focus:outline-none w-64 text-gray-800 placeholder-gray-500"
+                className="bg-gray-100 text-sm focus:outline-none w-64 px-2 py-1 rounded-md"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && doSearch()}
+                onFocus={() =>{ setShowSuggestions(true) 
+                                fetchAllProducts()
+                }}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                
               />
+              {showSuggestions && suggestions.length > 0 && (
+                <div className="absolute top-full mt-1 w-80 bg-white border border-gray-200 rounded-md shadow-lg z-50">
+                  {suggestions.map(prod => (
+                    <Link
+                      key={prod.nombre}
+                      href={`/products/info?categoria=${encodeURIComponent(prod.categoryFolder)}&producto=${encodeURIComponent(prod.nombre)}`}
+                      className="flex items-center p-2 hover:bg-gray-50"
+                    >
+                      <img
+                        src={prod.imagen}
+                        alt={prod.nombre}
+                        className="h-10 w-10 rounded mr-3 object-cover"
+                      />
+                      <div className="flex-1 overflow-hidden">
+                        <p className="text-sm font-medium truncate">{prod.nombre}</p>
+                        <p className="text-xs text-gray-500">€{prod.precio}</p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -210,7 +306,7 @@ const Header: React.FC<HeaderProps> = ({
             </button>
             <button
               className="hover:text-green-600"
-              onClick={() => router.push('/user')}
+              onClick={() => router.push("/user")}
             >
               <User className="h-5 w-5" />
             </button>
@@ -218,8 +314,22 @@ const Header: React.FC<HeaderProps> = ({
 
           {/* Mobile icons */}
           <div className="md:hidden flex items-center space-x-3">
-            <Search className="h-5 w-5 text-gray-600" />
-            <button onClick={() => router.push('/user')}>
+            {/* MOBILE SEARCH */}
+            <div className="flex items-center rounded-md bg-gray-100 px-2 py-1">
+              <Search
+                className="h-5 w-5 text-gray-600 cursor-pointer"
+                onClick={doSearch}
+              />
+              <input
+                type="search"
+                placeholder="Buscar..."
+                className="ml-1 bg-transparent text-sm focus:outline-none w-20 text-gray-800 placeholder-gray-500"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && doSearch()}
+              />
+            </div>
+            <button onClick={() => router.push("/user")}>
               <User className="h-5 w-5 text-gray-600" />
             </button>
             <button
@@ -238,43 +348,41 @@ const Header: React.FC<HeaderProps> = ({
 
         {/* Mobile menu */}
         {isMobileMenuOpen && (
-  <div
-    className="
-      md:hidden fixed inset-x-0 
-      z-[70] bg-white/95 text-gray-800 p-6 space-y-4 shadow-xl
-    "
-    style={{
-      // Ajusta este valor si tu header es mayor o menor de 64px
-      top: '64px',                
-      height: 'calc(100vh - 64px)' 
-    }}
-  >
-    {/* buscador */}
-    <div className="flex items-center bg-gray-100 rounded-md px-3 py-2 mb-6">
-      <Search className="h-5 w-5 text-gray-500 mr-2" />
-      <input
-        type="search"
-        placeholder="Buscar..."
-        className="bg-transparent text-sm placeholder-gray-500 focus:outline-none w-full"
-      />
-    </div>
-    {["Productos", "Blog", "Mi Cuenta", "Favoritos"].map(item => (
-      <Link
-        key={item}
-        href={
-          item === "Productos" ? "/products" :
-          item === "Blog"       ? "/blog"    :
-          item === "Mi Cuenta"  ? "/user"    :
-          "/"
-        }
-        className="block py-2 hover:text-green-600 transition-colors text-lg"
-      >
-        {item}
-      </Link>
-    ))}
-  </div>
-)}
-
+          <div
+            className="md:hidden fixed inset-x-0 z-[70] bg-white text-gray-800 p-6 space-y-4 shadow-xl"
+            style={{ top: '64px', height: 'calc(100vh - 64px)' }}
+          >
+            {/* buscador móvil */}
+            <div className="flex items-center bg-gray-100 rounded-md px-3 py-2 mb-6">
+              <Search
+                className="h-5 w-5 text-gray-500 mr-2 cursor-pointer"
+                onClick={doSearch}
+              />
+              <input
+                type="search"
+                placeholder="Buscar..."
+                className="bg-transparent text-sm placeholder-gray-500 focus:outline-none w-full"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && doSearch()}
+              />
+            </div>
+            {["Productos", "Blog", "Mi Cuenta", "Favoritos"].map(item => (
+              <Link
+                key={item}
+                href={
+                  item === "Productos" ? "/products" :
+                  item === "Blog"       ? "/blog"    :
+                  item === "Mi Cuenta"  ? "/user"    :
+                  "/"
+                }
+                className="block py-2 hover:text-green-600 transition-colors text-lg"
+              >
+                {item}
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Cart panel */}
@@ -283,11 +391,13 @@ const Header: React.FC<HeaderProps> = ({
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b">
             <h2 className="font-semibold">Tu Carrito</h2>
-            <button onClick={() => setCartOpen(false)} className="p-2 rounded-full bg-green-50 hover:bg-green-100">
+            <button
+              onClick={() => setCartOpen(false)}
+              className="p-2 rounded-full bg-green-50 hover:bg-green-100"
+            >
               <X className="h-5 w-5 text-green-600" />
             </button>
           </div>
-
           {/* Items */}
           <div className="p-4 flex-1 overflow-auto space-y-3">
             {loading ? (
@@ -307,7 +417,9 @@ const Header: React.FC<HeaderProps> = ({
                   />
                   <div className="flex-1">
                     <p className="font-medium text-sm">{item.nombre}</p>
-                    <p className="text-xs text-gray-500">€{item.precio.toFixed(2)}</p>
+                    <p className="text-xs text-gray-500">
+                      €{item.precio.toFixed(2)}
+                    </p>
                   </div>
                   <div className="flex items-center space-x-1 mr-2">
                     <button onClick={() => updateQty(item.productId, -1)}>
@@ -325,7 +437,6 @@ const Header: React.FC<HeaderProps> = ({
               ))
             )}
           </div>
-
           {/* Footer */}
           <div className="p-4 bg-green-50">
             <div className="flex justify-between mb-4 text-gray-800">
@@ -343,6 +454,4 @@ const Header: React.FC<HeaderProps> = ({
       )}
     </header>
   );
-};
-
-export default Header;
+}

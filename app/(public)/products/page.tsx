@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, { useState, useEffect } from "react";
 import {
@@ -22,7 +22,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { Slider } from "@radix-ui/react-slider";
+import * as Slider from '@radix-ui/react-slider';
 import { useAuth } from "@/context/AuthContext";
 
 interface Product {
@@ -49,9 +49,18 @@ export default function PlantasPage() {
   // productos
   const [plantProducts, setPlantProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
-  const [categoria, setCategoria] = useState<string>("todo"); // <-- defecto "todo"
+
+  // filtros
+  const [categoria, setCategoria] = useState<string>("todo");
   const [availabilityFilter, setAvailabilityFilter] = useState<boolean>();
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000]);
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 300]);
+
+  // filtro por nombre desde parámetro "producto"
+  const searchParams = useSearchParams();
+  const rawProductoFiltro = searchParams.get("producto") || "";
+  const productoFiltro = decodeURIComponent(
+    rawProductoFiltro.replace(/\+/g, " ")
+  ).trim().toLowerCase();
 
   // carrito
   const [cartOpen, setCartOpen] = useState(false);
@@ -62,7 +71,7 @@ export default function PlantasPage() {
     if (isAuthenticated && isAdmin) setIsSidebarOpen(true);
   }, [isAuthenticated, isAdmin]);
 
-  // Cargar productos
+  // Cargar todos los productos
   useEffect(() => {
     async function fetchData() {
       const collections = [
@@ -97,26 +106,30 @@ export default function PlantasPage() {
     fetchData();
   }, []);
 
-  // Filtrar
+  // Aplicar filtros
   useEffect(() => {
     let f = [...plantProducts];
 
-    // categoría: solo filtrar si no es "todo"
     if (categoria !== "todo") {
       f = f.filter((p) => p.categoryFolder === categoria);
     }
-
     if (availabilityFilter !== undefined) {
       f = f.filter((p) =>
         availabilityFilter ? p.stock > 0 : p.stock === 0
       );
     }
-
     f = f.filter((p) => p.precio >= priceRange[0] && p.precio <= priceRange[1]);
-    setFilteredProducts(f);
-  }, [plantProducts, categoria, availabilityFilter, priceRange]);
 
-  // Handlers
+    if (productoFiltro) {
+      f = f.filter((p) =>
+        p.nombre.toLowerCase().includes(productoFiltro)
+      );
+    }
+
+    setFilteredProducts(f);
+  }, [plantProducts, categoria, availabilityFilter, priceRange, productoFiltro]);
+
+  // Handlers filtros
   const handleFilterChange = (cat: string) => setCategoria(cat);
   const handleAvailabilityChange = (val: string) =>
     setAvailabilityFilter(
@@ -124,6 +137,15 @@ export default function PlantasPage() {
     );
   const handlePriceChange = (val: number[]) =>
     setPriceRange(val as [number, number]);
+
+  // Limpiar todos los filtros
+  const clearFilters = () => {
+    setCategoria("todo");
+    setAvailabilityFilter(undefined);
+    setPriceRange([0, 1000]);
+    // limpia URL
+    router.push("/products");
+  };
 
   // Cargar carrito
   useEffect(() => {
@@ -188,13 +210,11 @@ export default function PlantasPage() {
       .filter((i) => i.cantidad > 0);
     saveCart(updated);
   };
-
   const removeItem = (pid: string) =>
     saveCart(cartItems.filter((i) => i.productId !== pid));
-
   const cartTotal = cartItems.reduce((sum, i) => sum + i.total, 0);
 
-  // Layout class según sidebar
+  // Layout según sidebar
   const contentClass = !isSidebarOpen
     ? "w-full"
     : collapsed
@@ -227,35 +247,13 @@ export default function PlantasPage() {
         />
 
         <main className="pt-[calc(1.75rem+4rem)]">
-          {/* Hero */}
-          <section className="relative h-[50vh] sm:h-[60vh] md:h-[70vh] flex items-center justify-center text-center text-white">
-            <Image
-              src="/plant-hero-background.png"
-              alt="Fondo plantas"
-              fill
-              className="object-cover z-0"
-              priority
-            />
-            <div className="absolute inset-0 bg-black/40 z-10" />
-            <div className="relative z-20 p-4">
-              <h1
-                className="text-4xl sm:text-5xl md:text-6xl font-bold mb-4 leading-tight"
-                style={{ textShadow: "0 2px 4px rgba(0,0,0,0.5)" }}
-              >
-                Tu Oasis Verde Comienza Aquí
-              </h1>
-              <p
-                className="text-lg sm:text-xl mb-8 max-w-2xl mx-auto"
-                style={{ textShadow: "0 1px 3px rgba(0,0,0,0.5)" }}
-              >
-                Descubre nuestra selección de productos para dar vida a cada rincón.
-              </p>
-            </div>
-          </section>
+          {/* ... sección Hero ... */}
 
           {/* Filtros */}
           <section className="py-12 sm:py-16 lg:py-20">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+
+              {/* Filtros categoría y disponibilidad */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8 sm:mb-12">
                 {/* Categoría */}
                 <div className="flex flex-col space-y-4">
@@ -286,7 +284,6 @@ export default function PlantasPage() {
                     </SelectContent>
                   </Select>
                 </div>
-
                 {/* Disponibilidad */}
                 <div className="flex flex-col space-y-4">
                   <Label htmlFor="availability" className="text-sm text-gray-600">
@@ -320,24 +317,39 @@ export default function PlantasPage() {
                 </div>
               </div>
 
-              {/* Slider precios */}
-              <div className="mb-6">
-                <Label htmlFor="price-range" className="text-sm text-gray-600 mb-2">
-                  Rango de precios
-                </Label>
-                <Slider
-                  value={priceRange}
-                  onValueChange={handlePriceChange}
-                  min={0}
-                  max={1000}
-                  step={10}
-                  className="w-full"
-                >
-                  <div className="flex justify-between text-sm">
+              {/* Slider de precios + botón Limpiar */}
+              <div className="flex flex-col lg:flex-row lg:items-center gap-4 mb-6">
+                <div className="w-full lg:w-1/2">
+                  <Label htmlFor="price-range" className="text-sm text-gray-600 mb-2 block">
+                    Rango de precios
+                  </Label>
+                   <Slider.Root
+                    className="relative flex w-full touch-none select-none items-center"
+                    value={priceRange}
+                    onValueChange={handlePriceChange}
+                    max={300}
+                    step={10}
+                    min={0}
+                  >
+                    {/* TRACK */}
+                    <Slider.Track className="bg-gray-300 relative h-1 w-full grow rounded-full">
+                      <Slider.Range className="absolute h-full bg-green-600 rounded-full" />
+                    </Slider.Track>
+                    {/* THUMBS */}
+                    <Slider.Thumb className="block h-4 w-4 rounded-full bg-white border-2 border-green-600 focus:outline-none focus:ring-2 focus:ring-green-600" />
+                    <Slider.Thumb className="block h-4 w-4 rounded-full bg-white border-2 border-green-600 focus:outline-none focus:ring-2 focus:ring-green-600" />
+                  </Slider.Root>
+                  <div className="flex justify-between text-sm mt-1">
                     <span>${priceRange[0]}</span>
                     <span>${priceRange[1]}</span>
                   </div>
-                </Slider>
+                </div>
+                <button
+                  onClick={clearFilters}
+                  className="mt-4 lg:mt-0 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-md"
+                >
+                  Limpiar filtros
+                </button>
               </div>
 
               {/* Grid de productos */}
