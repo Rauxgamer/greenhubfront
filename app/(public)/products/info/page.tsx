@@ -49,8 +49,10 @@ export default function ProductDetailPage() {
   const { isAuthenticated, isAdmin, user } = useAuth();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const categoriaParam = searchParams.get("categoria") || "";
-  const productoParam = searchParams.get("producto") || "";
+const rawCategoria = searchParams.get("categoria") || "";
+const rawProducto  = searchParams.get("producto")  || "";
+const categoriaParam = decodeURIComponent(rawCategoria.replace(/\+/g, " "));
+const productoParam  = decodeURIComponent(rawProducto .replace(/\+/g, " "));
 
   // PRODUCTO
   const [productData, setProductData] = useState<ProductData>({
@@ -78,27 +80,52 @@ export default function ProductDetailPage() {
   }, [isAuthenticated, isAdmin]);
 
   // Fetch producto
-  useEffect(() => {
-    async function fetchProduct() {
-      if (!categoriaParam || !productoParam) return;
-      const ref = doc(db, "productos", categoriaParam, "tipos", productoParam);
-      const snap = await getDoc(ref);
-      if (snap.exists()) {
-        const d = snap.data() as any;
-        setProductData({
-          nombre: d.nombre || "",
-          descripcion: d.descripcion || "",
-          imagen: Array.isArray(d.imagen) ? d.imagen : ["", ""],
-          precio: typeof d.precio === "number" ? d.precio : 0,
-          originalPrice:
-            typeof d.originalPrice === "number" ? d.originalPrice : 0,
-          disponible: d.disponible || "",
-          categoria_principal: d.categoria_principal || "",
-        });
+ useEffect(() => {
+  async function fetchProduct() {
+    if (!categoriaParam || !productoParam) return;
+
+    // 1) Intentamos doc directo
+    let snap = await getDoc(
+      doc(db, "productos", categoriaParam, "tipos", productoParam)
+    );
+
+    // 2) Si no existe, buscamos en toda la colección comparando 'nombre'
+    if (!snap.exists()) {
+      const colRef = collection(db, "productos", categoriaParam, "tipos");
+      const all = await getDocs(colRef);
+
+      // normalizamos ambos: quitamos espacios extras y pasamos a minúsculas
+      const slugParam = productoParam.trim().toLowerCase();
+
+      const match = all.docs.find(d => {
+        const idSlug   = d.id.trim().toLowerCase();
+        const nameSlug = (d.data().nombre as string || "")
+                           .trim().toLowerCase();
+        return idSlug === slugParam || nameSlug === slugParam;
+      });
+
+      if (!match) {
+        console.warn("No encontrado:", productoParam);
+        return;
       }
+      snap = match;
     }
-    fetchProduct();
-  }, [categoriaParam, productoParam]);
+
+    // 3) Si hay documento, leemos datos
+    const d = snap.data() as any;
+    setProductData({
+      nombre: d.nombre || "",
+      descripcion: d.descripcion || "",
+      imagen: Array.isArray(d.imagen) ? d.imagen : ["", ""],
+      precio: typeof d.precio === "number" ? d.precio : 0,
+      originalPrice: typeof d.originalPrice === "number" ? d.originalPrice : 0,
+      disponible: d.disponible || "",
+      categoria_principal: d.categoria_principal || "",
+    });
+  }
+  fetchProduct();
+}, [categoriaParam, productoParam]);
+
 
   // Cargar carrito
   useEffect(() => {
@@ -283,7 +310,7 @@ export default function ProductDetailPage() {
               href={`/products?categoria=${categoriaParam}`}
               className="hover:text-green-600"
             >
-              {productData.categoria_principal || categoriaParam}
+              {categoriaParam}
             </Link>
             <ChevronRight className="h-3.5 w-3.5" />
             <span className="font-medium text-gray-700">
